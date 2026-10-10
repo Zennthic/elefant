@@ -1,0 +1,22 @@
+# Keep the build context to what the Dockerfile copies. Anything else here is
+# at best dead weight in the context and at worst a secret or a test fixture
+# that a future `COPY . .` would ship in the image.
+.git
+.gitignore
+tests/
+test/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.backup
+*.bak
+*.swp
+.env
+.env.*
+*.local.env
+*.pem
+*.key
+.venv/
+venv/
+.DS_Store
+node_modules/

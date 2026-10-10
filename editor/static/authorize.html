@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Theme and palette, applied before paint; see theme.js. The colour tokens
+       come from appearance.css (generated), the foundation rules from
+       elefant-ui.css — both before this page's own <style>, which refines them. -->
+  <script src="/theme.js"></script>
+  <link rel="stylesheet" href="/appearance.css">
+  <link rel="stylesheet" href="/elefant-ui.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="elefant_transparent.png" type="image/png">
+  <meta property="og:title" content="Elefant — Knowledge Base & Memory">
+  <meta property="og:description" content="Self-hostable wiki + AI memory store with MCP integration.">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <title>Authorize Access — <!-- APP_NAME --></title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      width: 100%;
+      max-width: 440px;
+      padding: 2rem;
+      box-shadow: var(--shadow);
+    }
+
+    .logo { text-align: center; margin-bottom: 1.5rem; }
+    .logo svg { width: 48px; height: 48px; }
+
+    h1 {
+      font-size: 22px;
+      font-weight: 600;
+      text-align: center;
+      margin-bottom: 0.25rem;
+      color: var(--text);
+      letter-spacing: -0.02em;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.875rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .signed-in-as {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.75rem;
+      margin-bottom: 1.5rem;
+      padding: 0.5rem 0.75rem;
+      background: var(--accentbg);
+      border-radius: var(--radius-xs);
+      border: 1px solid var(--line);
+    }
+    .signed-in-as strong { color: var(--text); }
+    .signed-in-as a {
+      color: var(--accent);
+      text-decoration: none;
+      margin-left: 0.5rem;
+    }
+    .signed-in-as a:hover { text-decoration: underline; }
+
+    .client-name {
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .section-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      margin-bottom: 0.75rem;
+    }
+
+    .permissions {
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      margin-bottom: 1.5rem;
+    }
+
+    .permission-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--line);
+    }
+    .permission-row:last-child { border-bottom: none; }
+
+    .permission-info { flex: 1; }
+    .permission-info strong { font-size: 0.875rem; display: block; color: var(--text); }
+    .permission-info span { font-size: 0.75rem; color: var(--muted); }
+
+    .toggle {
+      position: relative;
+      width: 40px;
+      height: 22px;
+      flex-shrink: 0;
+      margin-left: 1rem;
+    }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-track {
+      position: absolute;
+      inset: 0;
+      /* Off is a CONTROL boundary, so it has to be visible (WCAG 1.4.11
+         asks 3:1); --line-strong is the token that clears it. */
+      background: var(--line-strong);
+      border-radius: 11px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .toggle input:checked + .toggle-track { background: var(--accent); }
+    .toggle-thumb {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 16px;
+      height: 16px;
+      background: var(--panel);
+      border-radius: 50%;
+      transition: transform 0.2s;
+      pointer-events: none;
+    }
+    .toggle input:checked ~ .toggle-thumb { transform: translateX(18px); }
+
+    .redirect-note {
+      font-size: 0.75rem;
+      color: var(--muted);
+      word-break: break-all;
+      margin-bottom: 1.5rem;
+      padding: 0.5rem 0.75rem;
+      background: var(--accentbg);
+      border-radius: var(--radius-xs);
+      border: 1px solid var(--line);
+    }
+    .redirect-note strong { color: var(--text); }
+
+    /* Inline "AI/ folder only" pill on the Write Wiki row — makes the
+       scoping obvious without forcing the user to hover the row title. */
+    .scope-pill {
+      display: inline-block;
+      margin-left: 0.5rem;
+      padding: 0.125rem 0.4rem;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      font-family: monospace;
+      letter-spacing: 0.02em;
+      background: var(--accentbg);
+      color: var(--accent);
+      border: 1px solid var(--accentline);
+      border-radius: var(--radius-xs);
+      vertical-align: middle;
+    }
+    .permission-info code {
+      font-family: monospace;
+      font-size: 0.7em;
+      background: var(--accentbg);
+      padding: 0 0.25rem;
+      border-radius: var(--radius-xs);
+    }
+
+    .actions { display: flex; gap: 0.75rem; }
+
+    .btn {
+      flex: 1;
+      padding: 0.625rem 1rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.875rem;
+      font-weight: 550;
+      font-family: inherit;
+      cursor: pointer;
+      border: none;
+      transition: background 0.15s, box-shadow 0.15s;
+    }
+    .btn-approve {
+      background: var(--accent);
+      color: var(--on-accent);
+    }
+    .btn-approve:hover {
+      background: var(--accent-hover);
+      box-shadow: var(--shadow-md);
+    }
+    .btn-deny {
+      background: var(--accentbg);
+      color: var(--muted);
+      border: 1px solid var(--line-strong);
+    }
+    .btn-deny:hover {
+      background: var(--accentbg);
+      color: var(--text);
+    }
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">
+    <img src="/elefant_transparent.png" alt="Elefant" style="width: 56px; height: 56px;">
+  </div>
+
+  <h1>Authorize Access</h1>
+  <p class="subtitle" id="subtitle">Loading…</p>
+  <p class="signed-in-as" id="signed-in-as"><!-- USER_LINE --></p>
+
+  <p class="section-label">Permissions</p>
+  <div class="permissions">
+    <label class="permission-row" title="Lets the agent search and read every wiki page in your org.">
+      <div class="permission-info">
+        <strong>Read Wiki</strong>
+        <span>Search and read every wiki page in your org.</span>
+      </div>
+      <span class="toggle">
+        <input type="checkbox" id="wiki_read" name="wiki_read" checked>
+        <span class="toggle-track"></span>
+        <span class="toggle-thumb"></span>
+      </span>
+    </label>
+    <label class="permission-row" title="Lets the agent search and list memories visible to your account.">
+      <div class="permission-info">
+        <strong>Read Memories</strong>
+        <span>Search and list memories visible to your account.</span>
+      </div>
+      <span class="toggle">
+        <input type="checkbox" id="memory_read" name="memory_read" checked>
+        <span class="toggle-track"></span>
+        <span class="toggle-thumb"></span>
+      </span>
+    </label>
+    <label class="permission-row" title="Lets the agent add, update, and delete memories. Memories an agent can write also drive its future recall.">
+      <div class="permission-info">
+        <strong>Write Memories</strong>
+        <span>Add, update, and delete memories.</span>
+      </div>
+      <span class="toggle">
+        <input type="checkbox" id="memory_write" name="memory_write">
+        <span class="toggle-track"></span>
+        <span class="toggle-thumb"></span>
+      </span>
+    </label>
+    <label class="permission-row" title="Lets the agent create and update wiki pages — strictly inside your org's AI folder (default 'AI/'). Pages there are flagged AI-generated; the moment a human moves one out of AI/, agents can no longer modify it. Enforced server-side regardless of what the client tries.">
+      <div class="permission-info">
+        <strong>Write Wiki <span class="scope-pill">AI/ folder only</span></strong>
+        <span>Create and update wiki pages — strictly inside your org's AI folder (default <code>AI/</code>). Pages there are flagged AI-generated; the moment a human moves one out, agents can no longer modify it.</span>
+      </div>
+      <span class="toggle">
+        <input type="checkbox" id="wiki_write" name="wiki_write" checked>
+        <span class="toggle-track"></span>
+        <span class="toggle-thumb"></span>
+      </span>
+    </label>
+  </div>
+
+  <div class="redirect-note">
+    <strong>Redirect URI:</strong> <span id="redirect-uri-display"></span>
+  </div>
+
+  <form id="consent-form" method="POST" action="">
+    <input type="hidden" name="client_id"             id="f_client_id">
+    <input type="hidden" name="redirect_uri"          id="f_redirect_uri">
+    <input type="hidden" name="code_challenge"        id="f_code_challenge">
+    <input type="hidden" name="code_challenge_method" id="f_code_challenge_method" value="S256">
+    <input type="hidden" name="scope"                 id="f_scope" value="mcp">
+    <input type="hidden" name="state"                 id="f_state">
+    <input type="hidden" name="action"                id="f_action" value="approve">
+
+    <input type="hidden" name="wiki_read"    id="fh_wiki_read"    value="off">
+    <input type="hidden" name="memory_read"  id="fh_memory_read"  value="off">
+    <input type="hidden" name="memory_write" id="fh_memory_write" value="off">
+    <input type="hidden" name="wiki_write"   id="fh_wiki_write"   value="off">
+
+    <div class="actions">
+      <button type="button" class="btn btn-deny"    onclick="deny()">Deny</button>
+      <button type="submit" class="btn btn-approve" onclick="approve()">Approve</button>
+    </div>
+  </form>
+</div>
+
+<script>
+  /* __INJECTED__ */
+  const params = new URLSearchParams(window.location.search);
+
+  const map = {
+    client_id:             'f_client_id',
+    redirect_uri:          'f_redirect_uri',
+    code_challenge:        'f_code_challenge',
+    code_challenge_method: 'f_code_challenge_method',
+    scope:                 'f_scope',
+    state:                 'f_state',
+  };
+  for (const [param, id] of Object.entries(map)) {
+    const el = document.getElementById(id);
+    if (el && params.has(param)) el.value = params.get(param);
+  }
+
+  const clientName = (typeof _injectedClientName !== 'undefined')
+    ? _injectedClientName
+    : params.get('client_name') || params.get('client_id') || 'An external application';
+  const appName = (typeof _injectedAppName !== 'undefined')
+    ? _injectedAppName
+    : '<!-- APP_NAME -->';
+  document.title = `Authorize Access — ${appName}`;
+  document.getElementById('subtitle').innerHTML =
+    `<span class="client-name">${escHtml(clientName)}</span> is requesting access to your ${escHtml(appName)}.`;
+  document.getElementById('redirect-uri-display').textContent = params.get('redirect_uri') || '';
+
+  ['wiki_read', 'memory_read', 'memory_write', 'wiki_write'].forEach(name => {
+    const checkbox = document.getElementById(name);
+    const hidden   = document.getElementById('fh_' + name);
+    checkbox.addEventListener('change', () => {
+      hidden.value = checkbox.checked ? 'on' : 'off';
+    });
+    hidden.value = checkbox.checked ? 'on' : 'off';
+  });
+
+  function approve() {
+    document.getElementById('f_action').value = 'approve';
+  }
+
+  function deny() {
+    document.getElementById('f_action').value = 'deny';
+    document.getElementById('consent-form').submit();
+  }
+
+  function escHtml(str) {
+    return str.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+</script>
+</body>
+</html>

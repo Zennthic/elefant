@@ -1,0 +1,867 @@
+name: Build & Deploy
+
+on:
+  # CI runs only for code on main (merges) plus manual dispatch — no
+  # branch/PR builds, so the self-hosted runners aren't churned pre-merge.
+  # A pull request is checked by pr-checks.yml instead (the same lint and
+  # suites, on GitHub-hosted runners) plus dco.yml. Never add a
+  # `pull_request:` trigger here: these runners are on a private network.
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Every job now runs on a self-hosted machine, and this workflow deploys. Without
+# a concurrency group, merging two PRs close together starts two deploys side
+# by side, and they can finish out of order — leaving the cluster on the EARLIER
+# image with both runs reporting success. Pushes queue so the newest commit
+# lands last; pull requests (should one ever trigger this) cancel their own
+# superseded runs, because those are only checks.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_BASE: ghcr.io/zennthic/elefant
+  # The runtime the Dockerfiles ship, and what `lint`, `test` and `smoke` run
+  # inside. Keeping CI on Linux matters more than it looks: these suites have
+  # no platform-conditional skips today, and running them on the macOS runner's
+  # own Python would be the change that could introduce some — silently, since
+  # a skipped test exits 0.
+  CI_IMAGE: python:3.11.16-slim-trixie
+  # memory-ui has no Python in it, so its job needs its own image. Node 22 is
+  # what the suites are written against — roundtrip.mjs already works around
+  # Node 22 making the global `navigator` read-only — and `-slim` is Debian
+  # rather than Alpine on purpose: ci-in-container.sh is bash, and busybox sh
+  # would not run it.
+  NODE_CI_IMAGE: node:22-slim
+
+# Least privilege by default: every job gets a read-only token unless it
+# widens its own scope below (only the jobs that push images or cut a release
+# do). A job without a `permissions:` block therefore cannot write anything.
+permissions:
+  contents: read
+
+jobs:
+
+  # ── Detect which service directories changed ──────────────────────────────
+  changes:
+    name: Detect changed services
+    # Pure git and shell — no interpreter, so it needs nothing from the runner
+    # beyond a checkout.
+    runs-on: [self-hosted, macOS]
+    outputs:
+      services: ${{ steps.detect.outputs.services }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Full history so we can diff the entire push range (before..after),
+          # not just the tip — a multi-commit push must not skip a service that
+          # changed in a non-tip commit.
+          fetch-depth: 0
+
+      - name: Detect changed service directories
+        id: detect
+        run: |
+          # workflow_dispatch → rebuild everything
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo 'services=["editor","embedder","mcp","memory-api","memory-ui","nginx","diagram-renderer","diagram-validator"]' >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Diff the WHOLE push range (every commit just pushed), not only the
+          # tip commit — otherwise a service changed in an earlier commit of a
+          # multi-commit push is silently never rebuilt/redeployed.
+          BEFORE="${{ github.event.before }}"
+          AFTER="${{ github.event.after }}"
+          ZERO="0000000000000000000000000000000000000000"
+          if [ -n "$BEFORE" ] && [ "$BEFORE" != "$ZERO" ] \
+             && git rev-parse -q --verify "$BEFORE^{commit}" > /dev/null 2>&1; then
+            CHANGED=$(git diff --name-only "$BEFORE" "$AFTER")
+          else
+            # New branch or unknown base: fall back to the tip commit only.
+            CHANGED=$(git diff-tree --no-commit-id -r --name-only "${AFTER:-HEAD}")
+          fi
+
+          SERVICES=()
+          for svc in editor embedder mcp memory-api memory-ui nginx diagram-renderer diagram-validator; do
+            if echo "$CHANGED" | grep -q "^${svc}/"; then
+              SERVICES+=("$svc")
+            fi
+          done
+
+          if [ ${#SERVICES[@]} -eq 0 ]; then
+            SLIST="[]"
+          else
+            SLIST=$(printf '"%s",' "${SERVICES[@]}")
+            SLIST="[${SLIST%,}]"
+          fi
+          echo "services=$SLIST" >> $GITHUB_OUTPUT
+
+  # ── Lint Python services ──────────────────────────────────────────────────
+  # Targets the bugs py_compile can't catch: undefined names (e.g. a missing
+  # `import httpx`) and use-before-assignment.
+  lint:
+    name: Lint (ruff · Pyflakes rules)
+    runs-on: [self-hosted, macOS]
+    # Inert today — this workflow has no `pull_request:` trigger, so
+    # `github.event_name` is never "pull_request". It is here because adding
+    # that trigger is a reasonable thing for someone to do later, and these
+    # are machines on a private network: a PR from a fork is somebody else's
+    # code. THE CONSEQUENCE, stated so it is a decision rather than a
+    # surprise: with this guard, a fork PR gets no automated check at all and
+    # has to be read before it is trusted. (Outside contributors currently
+    # push branches inside the repo, not forks, so it costs them nothing.)
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Docker host (OrbStack socket)
+        run: echo "DOCKER_HOST=$(docker context inspect --format '{{.Endpoints.docker.Host}}')" >> $GITHUB_ENV
+      - name: ruff check
+        run: |
+          docker run --rm -i --name elefant-ci-lint \
+            --platform linux/arm64 \
+            -v "$PWD:/src:ro" -w /work \
+            "$CI_IMAGE" \
+            bash -s lint < .github/scripts/ci-in-container.sh
+      - name: Remove the container if the job was cancelled
+        # On a runner that is never wiped, a container outliving its job holds
+        # the name and wedges every later run. `docker run --rm` covers the
+        # normal exit; a cancel kills the step, not the container.
+        if: always()
+        run: docker rm -f elefant-ci-lint >/dev/null 2>&1 || true
+
+  # ── Tests: one job per Python service ────────────────────────────────────
+  # Each runs in its own process with that service's pinned deps, so
+  # `import main` in each tests/ dir resolves to that service's code without
+  # cross-service collisions on the module name.
+  #
+  # If this job fails, build + deploy do NOT run — gating is via `needs:`
+  # below.  This is the lesson from PR #68: a regression at the auth
+  # boundary should never reach a docker image, let alone a deployed stack.
+  test:
+    name: Test ${{ matrix.service }}
+    runs-on: [self-hosted, macOS]
+    # See the note on `lint` — inert today, and what it would mean if it were not.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [editor, embedder, memory-api, mcp]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Docker host (OrbStack socket)
+        run: echo "DOCKER_HOST=$(docker context inspect --format '{{.Endpoints.docker.Host}}')" >> $GITHUB_ENV
+      # memory-api's `*_integration.py` modules need a real PostgreSQL. A
+      # container started by hand rather than `services:`, which is Linux-only
+      # and silently does nothing on this macOS runner. Sets PG_DOCKER_ARGS.
+      - name: Start PostgreSQL for the integration tests
+        if: matrix.service == 'memory-api'
+        run: bash .github/scripts/ci-postgres.sh up ${{ matrix.service }}
+      # `-e CI` carries the runner's CI=true into the container, which is what
+      # turns a missing database from a skip into a failure (require_postgres
+      # in memory-api/tests/conftest.py). PG_DOCKER_ARGS is empty for every
+      # service but memory-api.
+      - name: Run pytest in the runtime this service ships
+        run: |
+          docker run --rm -i --name elefant-ci-test-${{ matrix.service }} \
+            --platform linux/arm64 \
+            -e CI $PG_DOCKER_ARGS \
+            -v "$PWD:/src:ro" -w /work \
+            "$CI_IMAGE" \
+            bash -s test ${{ matrix.service }} < .github/scripts/ci-in-container.sh
+      - name: Remove the container if the job was cancelled
+        if: always()
+        run: |
+          docker rm -f elefant-ci-test-${{ matrix.service }} >/dev/null 2>&1 || true
+          bash .github/scripts/ci-postgres.sh down ${{ matrix.service }}
+
+  # ── Test memory-ui: the front end's node suite ───────────────────────────
+  # Everything above this job is Python, so until it existed memory-ui's eight
+  # suites (roundtrip, bundle, commands, image, boards, wiki-path,
+  # wiki-tree-dnd, move-picker) only ever ran on the machine of whoever
+  # remembered to run them, and a front-end regression reached stage with the
+  # pipeline green. It gates `build` for the same reason the pytest matrix
+  # does: a regression should not make it into an image.
+  #
+  # Same container-on-the-macOS-runner shape as `test`, and for the same
+  # reason — the suite keeps running on linux/arm64 rather than moving to the
+  # runner's own node, where a platform difference could quietly change what
+  # is covered.
+  test-ui:
+    name: Test memory-ui (node)
+    runs-on: [self-hosted, macOS]
+    # See the note on `lint` — inert today, and what it would mean if it were not.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Docker host (OrbStack socket)
+        run: echo "DOCKER_HOST=$(docker context inspect --format '{{.Endpoints.docker.Host}}')" >> $GITHUB_ENV
+      - name: Run npm ci && npm test in the node the suites are written for
+        run: |
+          docker run --rm -i --name elefant-ci-test-ui \
+            --platform linux/arm64 \
+            -v "$PWD:/src:ro" -w /work \
+            "$NODE_CI_IMAGE" \
+            bash -s test-ui < .github/scripts/ci-in-container.sh
+      - name: Remove the container if the job was cancelled
+        if: always()
+        run: docker rm -f elefant-ci-test-ui >/dev/null 2>&1 || true
+
+  # ── Build only the changed service images ────────────────────────────────
+  build:
+    name: Build ${{ matrix.service }}
+    needs: [changes, test, test-ui]
+    # `github.repository` is the fork guard: in a fork, every job that pushes
+    # images, deploys or smokes Stage is skipped (see FORK_INERT in
+    # editor/tests/test_ci_runners.py). Tests and lint still run there.
+    if: |
+      github.repository == 'zennthic/elefant' &&
+      needs.changes.outputs.services != '[]' && needs.changes.outputs.services != ''
+    runs-on: [self-hosted, macOS]
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJson(needs.changes.outputs.services) }}
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # The self-hosted mac runner is headless (launchd service, user `ai`, no
+      # GUI login), so its login keychain is locked. On macOS the docker CLI
+      # AUTO-SELECTS the osxkeychain credential helper whenever config.json
+      # carries no auth at all: LoadDefaultConfigFile does
+      #   if !ContainsAuth() { CredentialsStore = DetectDefaultStore(...) }
+      # and DetectDefaultStore returns "osxkeychain" because
+      # docker-credential-osxkeychain is on PATH (OrbStack/Homebrew). So even
+      # with NO credsStore set, `docker login` tries the locked keychain and
+      # fails to store with errSecInteractionNotAllowed (-25308).
+      #
+      # Fix: don't run `docker login`. Seed the ghcr.io auth straight into a
+      # private config.json. Once an `auths` entry exists, ContainsAuth()==true,
+      # docker skips the auto-detect, keeps the plaintext file store, and the
+      # keychain is never touched. DOCKER_CONFIG is exported so the build/push
+      # steps read the same config.
+      - name: Docker login to ghcr.io (file store, no macOS keychain)
+        env:
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "runner user: $(whoami)   HOME: $HOME"
+          export DOCKER_CONFIG="$RUNNER_TEMP/docker-cfg"
+          echo "DOCKER_CONFIG=$DOCKER_CONFIG" >> "$GITHUB_ENV"
+          mkdir -p "$DOCKER_CONFIG"
+          # Copy the runner's ~/.docker (incl. contexts/) so the OrbStack socket
+          # still resolves below; strip any helper keys; then write the ghcr.io
+          # auth so ContainsAuth() is true and docker uses the file store.
+          cp -R "$HOME/.docker/." "$DOCKER_CONFIG/" 2>/dev/null || true
+          python3 -c "import base64,json,os;p=os.path.join(os.environ['DOCKER_CONFIG'],'config.json');d=json.load(open(p)) if os.path.exists(p) else {};[d.pop(k,None) for k in ('credsStore','credStore','credHelpers')];a=base64.b64encode((os.environ['GHCR_USER']+':'+os.environ['GHCR_TOKEN']).encode()).decode();d.setdefault('auths',{})['ghcr.io']={'auth':a};json.dump(d,open(p,'w'));print('file-store auths now:',list(d['auths'].keys()))"
+
+      - name: Export Docker host (OrbStack socket)
+        run: echo "DOCKER_HOST=$(docker context inspect --format '{{.Endpoints.docker.Host}}')" >> $GITHUB_ENV
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.IMAGE_BASE }}/${{ matrix.service }}
+
+      # PUSHED BY DIGEST, WITH NO TAG. That is the change that makes a
+      # multi-architecture image possible: two runners cannot both push
+      # `:main-<sha>` and have the second be anything but a replacement of the
+      # first. Each pushes an anonymous, per-architecture manifest instead, and
+      # `pin-release` assembles them into ONE tagged manifest list at the end.
+      #
+      # The consequence worth knowing: between this job and `pin-release`, this
+      # commit's image exists but no tag points at it. Nothing deploys in that
+      # window — `deploy` needs `pin-release` — so a failed merge leaves the
+      # Stage on the previous release rather than half-way onto this one.
+      - id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ./${{ matrix.service }}
+          # This runner is an arm64 Mac and builds natively. Stated so that a
+          # runner change fails HERE rather than turning up as a "no matching
+          # manifest" on a deploy.
+          platforms: linux/arm64
+          labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=image,name=${{ env.IMAGE_BASE }}/${{ matrix.service }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+      - name: Hand the digest to pin-release
+        env:
+          # Named after its artifact, so the file keeps its identity when
+          # pin-release downloads every artifact into one directory.
+          DIGEST_NAME: img-${{ matrix.service }}-arm64
+        run: |
+          mkdir -p "$RUNNER_TEMP/digest"
+          printf '%s' "${{ steps.build.outputs.digest }}" > "$RUNNER_TEMP/digest/${DIGEST_NAME}.txt"
+          cat "$RUNNER_TEMP/digest/${DIGEST_NAME}.txt"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          # `img-<service>-<arch>`. pin-release globs `img-<service>-*` to find
+          # every architecture built for one service, so the slim variant below
+          # uses a different prefix rather than a longer name — `img-embedder-*`
+          # must not also match the slim build.
+          name: img-${{ matrix.service }}-arm64
+          path: ${{ runner.temp }}/digest/img-${{ matrix.service }}-arm64.txt
+          retention-days: 1
+          if-no-files-found: error
+
+      # Embedder only: also publish a torch-free "slim" image for deployments
+      # that point at an external/custom embedding backend (EMBEDDING_PROVIDER=
+      # openai|custom) and never load the on-box model. It drops ~2GB of
+      # sentence-transformers/torch, so image pulls on those hosts are tiny.
+      # The `latest`/`main-<sha>` images above stay FULL so a zero-config local
+      # backend still works out of the box. Deploys opt in with
+      # EMBEDDER_IMAGE=…/embedder:slim (see docker-compose.yml).
+      - id: meta-slim
+        if: matrix.service == 'embedder'
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.IMAGE_BASE }}/embedder
+
+      - id: build-slim
+        if: matrix.service == 'embedder'
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ./embedder
+          platforms: linux/arm64
+          build-args: |
+            INCLUDE_LOCAL_EMBEDDINGS=false
+          labels: ${{ steps.meta-slim.outputs.labels }}
+          outputs: type=image,name=${{ env.IMAGE_BASE }}/embedder,push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=embedder-slim
+          cache-to: type=gha,mode=max,scope=embedder-slim
+
+      - name: Hand the slim digest to pin-release
+        env:
+          DIGEST_NAME: imgslim-embedder-arm64
+        if: matrix.service == 'embedder'
+        run: |
+          mkdir -p "$RUNNER_TEMP/digest-slim"
+          printf '%s' "${{ steps.build-slim.outputs.digest }}" > "$RUNNER_TEMP/digest-slim/${DIGEST_NAME}.txt"
+          cat "$RUNNER_TEMP/digest-slim/${DIGEST_NAME}.txt"
+
+      - if: matrix.service == 'embedder'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: imgslim-embedder-arm64
+          path: ${{ runner.temp }}/digest-slim/imgslim-embedder-arm64.txt
+          retention-days: 1
+          if-no-files-found: error
+
+  # ── Build the same services for amd64, on a hosted runner ────────────────
+  # THE ONE DELIBERATE EXCEPTION to "every job runs on a self-hosted machine",
+  # decided on 2026-09-23 by the maintainers. Do not "fix" it back.
+  #
+  # Why it has to exist: `latest` is what docker-compose.yml defaults to and
+  # what the Kubernetes base ships with, and the Mac builds arm64 only. An
+  # arm64-only `latest` means a stranger on an ordinary amd64 host gets "no
+  # matching manifest" — which is the whole reason a viewer of the release
+  # video cannot install Elefant today.
+  #
+  # Why hosted is acceptable here, when the self-hosted rule says never: that rule
+  # came from running out of metered Actions minutes on a PRIVATE repo. Standard
+  # hosted runners are FREE for public repositories. The guard below is what
+  # keeps both facts true at once — it bills nothing until the repo is public,
+  # and switches itself on the moment it is, with no commit needed.
+  #
+  # Why it is safe on a public repo: this workflow has no `pull_request`
+  # trigger and must never gain one (asserted in editor/tests/test_ci_runners.py).
+  # Nothing here runs a stranger's code, and the job touches no self-hosted machine.
+  build-amd64:
+    name: Build ${{ matrix.service }} (amd64)
+    needs: [changes, test, test-ui]
+    if: |
+      github.repository == 'zennthic/elefant' &&
+      !github.event.repository.private &&
+      needs.changes.outputs.services != '[]' &&
+      needs.changes.outputs.services != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJson(needs.changes.outputs.services) }}
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # A hosted runner has no macOS keychain, so the file-store workaround the
+      # `build` job needs is unnecessary here. This is the ordinary way.
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.IMAGE_BASE }}/${{ matrix.service }}
+
+      # No QEMU: a hosted runner IS amd64, so this is a native build.
+      - id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ./${{ matrix.service }}
+          platforms: linux/amd64
+          labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=image,name=${{ env.IMAGE_BASE }}/${{ matrix.service }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=${{ matrix.service }}-amd64
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}-amd64
+
+      - name: Hand the digest to pin-release
+        env:
+          # Named after its artifact, so the file keeps its identity when
+          # pin-release downloads every artifact into one directory.
+          DIGEST_NAME: img-${{ matrix.service }}-amd64
+        run: |
+          mkdir -p "$RUNNER_TEMP/digest"
+          printf '%s' "${{ steps.build.outputs.digest }}" > "$RUNNER_TEMP/digest/${DIGEST_NAME}.txt"
+          cat "$RUNNER_TEMP/digest/${DIGEST_NAME}.txt"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: img-${{ matrix.service }}-amd64
+          path: ${{ runner.temp }}/digest/img-${{ matrix.service }}-amd64.txt
+          retention-days: 1
+          if-no-files-found: error
+
+      - id: build-slim
+        if: matrix.service == 'embedder'
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ./embedder
+          platforms: linux/amd64
+          build-args: |
+            INCLUDE_LOCAL_EMBEDDINGS=false
+          labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=image,name=${{ env.IMAGE_BASE }}/embedder,push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=embedder-slim-amd64
+          cache-to: type=gha,mode=max,scope=embedder-slim-amd64
+
+      - name: Hand the slim digest to pin-release
+        env:
+          DIGEST_NAME: imgslim-embedder-amd64
+        if: matrix.service == 'embedder'
+        run: |
+          mkdir -p "$RUNNER_TEMP/digest-slim"
+          printf '%s' "${{ steps.build-slim.outputs.digest }}" > "$RUNNER_TEMP/digest-slim/${DIGEST_NAME}.txt"
+          cat "$RUNNER_TEMP/digest-slim/${DIGEST_NAME}.txt"
+
+      - if: matrix.service == 'embedder'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: imgslim-embedder-amd64
+          path: ${{ runner.temp }}/digest-slim/imgslim-embedder-amd64.txt
+          retention-days: 1
+          if-no-files-found: error
+
+  # ── Assemble the release: one tagged manifest list per service ───────────
+  # This job does two jobs that are really one, and it is worth being clear
+  # which is which.
+  #
+  # FIRST, IT MERGES. `build` and `build-amd64` push per-architecture images by
+  # DIGEST with no tag, because two runners cannot both push `:main-<sha>` and
+  # have the second be anything but a replacement of the first. This job takes
+  # the digests they handed over and publishes ONE manifest list per tag, so a
+  # `docker pull` on amd64 and on arm64 resolve to the right image from the
+  # same name. While the repo is private the amd64 job does not run and this
+  # merges arm64 alone, which is exactly what the pipeline produced before.
+  #
+  # SECOND, IT PINS. `build` only builds the services that CHANGED, so after a
+  # one-service push only that service has an image from this commit. The rest
+  # are pinned by retagging their `latest` — which is itself a manifest list,
+  # so the retag copies every architecture, not one.
+  #
+  # Both halves are registry-side: `imagetools create` copies manifests without
+  # pulling a layer, so this costs seconds.
+  #
+  # Reading `latest` here is safe because the workflow's concurrency group
+  # serialises pushes, so no other run can move it while this one sits between
+  # `build` and here.
+  pin-release:
+    name: Pin release tags
+    needs: [changes, build, build-amd64]
+    # `always()` because build-amd64 is SKIPPED while the repo is private, and
+    # a skipped dependency would otherwise skip this job too — taking `deploy`
+    # with it. The explicit result checks below are what actually gate: `build`
+    # must have succeeded, and build-amd64 must not have FAILED (skipped is
+    # fine, and is the normal case today).
+    if: |
+      !cancelled() &&
+      github.repository == 'zennthic/elefant' &&
+      needs.changes.outputs.services != '[]' &&
+      needs.changes.outputs.services != '' &&
+      needs.build.result == 'success' &&
+      needs['build-amd64'].result != 'failure' &&
+      needs['build-amd64'].result != 'cancelled'
+    runs-on: [self-hosted, macOS]
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      # Same keychain-free auth as `build`, and for the same reason — see the
+      # long comment there. `docker/login-action` would reach for the locked
+      # login keychain on this headless runner and fail to store the credential.
+      - name: Docker login to ghcr.io (file store, no macOS keychain)
+        env:
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          export DOCKER_CONFIG="$RUNNER_TEMP/docker-cfg-pin"
+          echo "DOCKER_CONFIG=$DOCKER_CONFIG" >> "$GITHUB_ENV"
+          mkdir -p "$DOCKER_CONFIG"
+          cp -R "$HOME/.docker/." "$DOCKER_CONFIG/" 2>/dev/null || true
+          python3 -c "import base64,json,os;p=os.path.join(os.environ['DOCKER_CONFIG'],'config.json');d=json.load(open(p)) if os.path.exists(p) else {};[d.pop(k,None) for k in ('credsStore','credStore','credHelpers')];a=base64.b64encode((os.environ['GHCR_USER']+':'+os.environ['GHCR_TOKEN']).encode()).decode();d.setdefault('auths',{})['ghcr.io']={'auth':a};json.dump(d,open(p,'w'));print('file-store auths now:',list(d['auths'].keys()))"
+
+      - name: Export Docker host (OrbStack socket)
+        run: echo "DOCKER_HOST=$(docker context inspect --format '{{.Endpoints.docker.Host}}')" >> $GITHUB_ENV
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Collect the per-architecture digests
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: img*
+          # Everything lands in one directory, and each file is named after
+          # its artifact (`img-editor-arm64.txt`), which is how a service's
+          # architectures are told apart below. Not per-artifact directories:
+          # when the pattern matches ONE artifact, download-artifact extracts
+          # it straight into `path` with no directory, so a run that built a
+          # single arm64 image found no digest and failed the pin.
+          merge-multiple: true
+
+      - name: Assemble and pin every service
+        env:
+          # The services `build` actually ran for. Everything else is pinned
+          # from `latest`, which is that service's most recent release.
+          BUILT: ${{ needs.changes.outputs.services }}
+        run: |
+          set -euo pipefail
+          SHA7="$(echo "${{ github.sha }}" | cut -c1-7)"
+          TAG="main-${SHA7}"
+          DIGESTS="$RUNNER_TEMP/digests"
+          echo "Release tag: ${TAG}"
+          echo "Services built in this run: ${BUILT}"
+
+          # `latest` means "the head of main". A workflow_dispatch from another
+          # ref must not move it, so the moving tags are decided here once.
+          MOVING=""
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            MOVING="latest"
+            echo "On main: this run will also move :latest and :slim"
+          else
+            echo "Not on main (${{ github.ref }}): leaving :latest and :slim alone"
+          fi
+
+          # Collect `--tag X --tag Y` and the `name@sha256:...` sources for one
+          # image, then publish them as a single manifest list.
+          merge() {                       # merge <image> <artifact-prefix> <tag> [moving-tag]
+            local img="$1" prefix="$2" tag="$3" moving="${4:-}"
+            local args=(--tag "${img}:${tag}")
+            [ -n "$moving" ] && args+=(--tag "${img}:${moving}")
+            # A STRING, not an array. macOS ships bash 3.2, where expanding an
+            # empty array under `set -u` is itself an error — so a "no digests"
+            # case would die with "unbound variable" instead of the message
+            # below. Digests contain no spaces, so unquoted word splitting is
+            # exactly what is wanted here.
+            local srcs="" n=0 f
+            for f in "${DIGESTS}/${prefix}"-*.txt; do
+              [ -f "$f" ] || continue
+              srcs="${srcs} ${img}@$(cat "$f")"
+              n=$((n + 1))
+            done
+            if [ "$n" -eq 0 ]; then
+              echo "::error::no digests found for ${prefix}; the build job uploaded none" >&2
+              return 1
+            fi
+            echo "  merging ${n} architecture(s) into ${img}:${tag}${moving:+ and :${moving}}"
+            docker buildx imagetools create "${args[@]}" ${srcs}
+          }
+
+          for svc in editor embedder mcp memory-api memory-ui nginx diagram-renderer diagram-validator; do
+            IMG="${IMAGE_BASE}/${svc}"
+            # BUILT is a JSON array; the quotes make this an exact-element
+            # match rather than a substring one.
+            if echo "$BUILT" | grep -q "\"${svc}\""; then
+              echo "  ${svc}: built this run, assembling from digests"
+              merge "$IMG" "img-${svc}" "$TAG" "$MOVING"
+            else
+              # `latest` is already a manifest list, so this copies every
+              # architecture it has rather than flattening it to one.
+              echo "  ${svc}: not built this run, pinning ${TAG} from latest"
+              docker buildx imagetools create --tag "${IMG}:${TAG}" "${IMG}:latest"
+            fi
+          done
+
+          # The embedder also ships a torch-free "slim" variant (see `build`).
+          # It needs a pinned tag too, or EMBEDDER_IMAGE=...:slim floats while
+          # everything else is pinned.
+          EMB="${IMAGE_BASE}/embedder"
+          SLIM_MOVING=""
+          [ -n "$MOVING" ] && SLIM_MOVING="slim"
+          if echo "$BUILT" | grep -q '"embedder"'; then
+            echo "  embedder (slim): built this run, assembling from digests"
+            merge "$EMB" "imgslim-embedder" "${TAG}-slim" "$SLIM_MOVING"
+          else
+            echo "  embedder (slim): not built this run, pinning ${TAG}-slim from slim"
+            docker buildx imagetools create --tag "${EMB}:${TAG}-slim" "${EMB}:slim"
+          fi
+
+          echo "ELEFANT_TAG=${TAG}" >> "$GITHUB_STEP_SUMMARY"
+
+      # Proves the thing the card is actually about, on every run: the tag a
+      # deploy will ask for really resolves, and for which architectures. It
+      # reads arm64 alone while the repo is private and both once it is public,
+      # so the day the guard switches on is visible in a job log rather than
+      # discovered by a stranger's failed pull.
+      - name: Report what the release tag resolves to
+        run: |
+          set -euo pipefail
+          SHA7="$(echo "${{ github.sha }}" | cut -c1-7)"
+          for svc in editor embedder mcp memory-api memory-ui nginx diagram-renderer diagram-validator; do
+            IMG="${IMAGE_BASE}/${svc}:main-${SHA7}"
+            echo "── ${IMG}"
+            # `inspect` without --raw prints a Name/MediaType/Platform listing.
+            # grep for the platform lines; `|| true` because a single-platform
+            # manifest has none, and that is information rather than a failure.
+            docker buildx imagetools inspect "$IMG" | grep -i 'platform' || \
+              echo "   (single-platform manifest, no platform list)"
+          done
+
+  # ── Deploy (only on push to main when a service actually changed) ──
+  # Skips when only tests/, scripts/, docs/, or workflows/ changed so a
+  # docs-only or test-only commit doesn't churn the running stack.
+  # `compose up -d --pull always` is idempotent — running it with no new
+  # image is still safe — but it does briefly recreate containers, and
+  # the smoke job below would needlessly run against a warm stack.
+  deploy:
+    name: Deploy
+    needs: [build, changes, pin-release]
+    # `!cancelled()` for the same reason pin-release needs it, one hop further
+    # on. A SKIPPED job propagates down the needs graph TRANSITIVELY: while the
+    # repo is private `build-amd64` is skipped on every run, and although
+    # pin-release overrides that for itself, the skip carries on through to
+    # here unless this job overrides it too. Without this line the pipeline
+    # goes green with no deploy at all, which is how it behaved on the run that
+    # first shipped the multi-arch build.
+    #
+    # `!cancelled()` rather than `always()`: a cancelled run must not deploy.
+    # The explicit result checks below are what actually gate.
+    if: |
+      !cancelled() &&
+      github.repository == 'zennthic/elefant' &&
+      github.event_name == 'push' && github.ref == 'refs/heads/main' &&
+      needs.changes.outputs.services != '[]' &&
+      needs.changes.outputs.services != '' &&
+      needs.build.result == 'success' &&
+      needs['pin-release'].result == 'success'
+    runs-on: [self-hosted, linux, docker-swarm]
+    permissions:
+      contents: read
+      packages: read
+    # Where the Stage's compose files live on the deploy host. A repository
+    # variable rather than a literal, so this public file names no host path.
+    # Checked before anything runs: unset, every path below would collapse to
+    # the root of the filesystem.
+    env:
+      STAGE_DEPLOY_DIR: ${{ vars.STAGE_DEPLOY_DIR }}
+      # Stage runs the optional diagram renderer, so the diagram tools are
+      # exercised end to end before a release. Every compose call below (and
+      # the preflight's) reads this, the same way ELEFANT_TAG is read.
+      COMPOSE_PROFILES: diagrams
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Require the Stage deploy directory
+        run: |
+          if [ -z "$STAGE_DEPLOY_DIR" ]; then
+            echo "::error::Repository variable STAGE_DEPLOY_DIR is not set. Set it to the deploy host's directory for the Stage compose files (Settings > Secrets and variables > Actions > Variables)."
+            exit 1
+          fi
+          case "$STAGE_DEPLOY_DIR" in
+            /?*) ;;
+            *) echo "::error::STAGE_DEPLOY_DIR must be an absolute path below /, got '$STAGE_DEPLOY_DIR'."; exit 1 ;;
+          esac
+
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Every compose command below reads this, so it is set once in the job
+      # environment rather than repeated per step — a `ps` run without it would
+      # resolve to `:latest` and report images the deploy never started.
+      - name: Resolve the release tag
+        run: |
+          SHA7="$(echo "${{ github.sha }}" | cut -c1-7)"
+          echo "ELEFANT_TAG=main-${SHA7}" >> "$GITHUB_ENV"
+          echo "Deploying tag: main-${SHA7}"
+
+      # TWO files. docker-compose.yml carries no Traefik and no external
+      # network, so that a stranger's `docker compose up -d` works on a fresh
+      # host (see the header of that file). Everything that routes this Stage
+      # through Traefik — the labels and the traefik_traefik-public network —
+      # lives in the override, and WITHOUT it this deploy would publish
+      # ${PORT} and never be reachable on its own hostname. A manual prod
+      # deploy has to pass both files too.
+      - name: Deploy
+        run: |
+          echo "ELEFANT_TAG=${ELEFANT_TAG}"
+          mkdir -p "$STAGE_DEPLOY_DIR"
+          cp docker-compose.yml "$STAGE_DEPLOY_DIR"/docker-compose.yml
+          cp docker-compose.traefik.yml "$STAGE_DEPLOY_DIR"/docker-compose.traefik.yml
+          # The same preflight a manual prod promotion runs (card #300): it
+          # pulls this release's images and refuses the deploy if the host's
+          # compose files, .env, image users, ports or volume ownership do not
+          # fit them. It changes nothing that is running.
+          bash scripts/prod-preflight.sh --dir "$STAGE_DEPLOY_DIR" \
+            --source "$GITHUB_WORKSPACE" --tag "$ELEFANT_TAG"
+          docker compose -f "$STAGE_DEPLOY_DIR"/docker-compose.yml \
+            -f "$STAGE_DEPLOY_DIR"/docker-compose.traefik.yml \
+            up -d --pull always --no-build
+          # Recreated services (memory-ui, editor, …) get new container IPs, but
+          # nginx resolves its upstreams once at startup and isn't recreated
+          # here, so it keeps proxying the dead old IP → 502. Restart nginx so
+          # it re-resolves the current upstreams. (Manual prod deploys must do
+          # the same: docker compose restart nginx after `up -d`.)
+          docker compose -f "$STAGE_DEPLOY_DIR"/docker-compose.yml \
+            -f "$STAGE_DEPLOY_DIR"/docker-compose.traefik.yml \
+            restart nginx
+
+      - name: Print service status
+        run: |
+          echo "Deployed release tag: ${ELEFANT_TAG}"
+          docker compose -f "$STAGE_DEPLOY_DIR"/docker-compose.yml \
+            -f "$STAGE_DEPLOY_DIR"/docker-compose.traefik.yml ps
+
+      # Post-deploy verify (card #300): every service running and healthy, the
+      # published port answering through nginx, the auth gate, and no
+      # permission or encryption errors in the editor's logs. The token checks
+      # (auth-check, a search through /mcp) run when ELEFANT_VERIFY_TOKEN is
+      # set as a repo secret, and are reported as skipped otherwise.
+      - name: Verify
+        env:
+          ELEFANT_VERIFY_TOKEN: ${{ secrets.ELEFANT_VERIFY_TOKEN }}
+        run: bash scripts/prod-preflight.sh --verify --dir "$STAGE_DEPLOY_DIR" --allow-skips --wait 300
+
+  # ── Smoke tests against the freshly-deployed stage ──────────────────────
+  # This layer catches deploy-time misconfiguration that unit tests cannot
+  # see, such as INTERNAL_SERVICE_TOKEN missing on memory-api.  Anonymous endpoints
+  # always run.  Cookie-bearing tests require SMOKE_SESSION_COOKIE to be
+  # set as a repo secret (a service-account cookie rotated regularly).
+  # With the secret unset the cookie-bearing half SKIPS and the job stays
+  # green. That is deliberate for now: requiring it (SMOKE_REQUIRE_AUTH=1)
+  # halted every deploy, because a session cookie expires after 24 hours.
+  # How authenticated smoke should sign in is being revisited (card #417);
+  # tests/smoke.py still honours SMOKE_REQUIRE_AUTH for when it is decided.
+  smoke:
+    name: Smoke (stage)
+    needs: [deploy]
+    # Same transitive-skip override as `deploy` — see the note there. Written
+    # as a block scalar because a bare `!` at the start of a YAML value is a
+    # tag indicator, and the file stops parsing.
+    if: |
+      !cancelled() && github.repository == 'zennthic/elefant' &&
+      needs.deploy.result == 'success'
+    runs-on: [self-hosted, macOS]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # The Stage's public URL is a repository variable, like the deploy
+      # directory, so this file names no deployment of ours.
+      - name: Require the Stage URL
+        env:
+          BASE_URL: ${{ vars.STAGE_BASE_URL }}
+        run: |
+          case "$BASE_URL" in
+            https://?*) ;;
+            "") echo "::error::Repository variable STAGE_BASE_URL is not set. Set it to the Stage's https:// URL (Settings > Secrets and variables > Actions > Variables)."; exit 1 ;;
+            *) echo "::error::STAGE_BASE_URL must be an https:// URL, got '$BASE_URL'."; exit 1 ;;
+          esac
+      - name: Docker host (OrbStack socket)
+        run: echo "DOCKER_HOST=$(docker context inspect --format '{{.Endpoints.docker.Host}}')" >> $GITHUB_ENV
+      - name: Run smoke tests
+        env:
+          BASE_URL: ${{ vars.STAGE_BASE_URL }}
+          SMOKE_SESSION_COOKIE: ${{ secrets.SMOKE_SESSION_COOKIE }}
+          # Stage may need extra startup time on cold rebuilds (the editor
+          # warms its scheduler + readiness markers).  120s default is
+          # plenty for most cases; bump if a future deploy gets slower.
+          SMOKE_READY_WAIT: "180"
+        run: |
+          docker run --rm -i --name elefant-ci-smoke \
+            --platform linux/arm64 \
+            -v "$PWD:/src:ro" -w /work \
+            -e BASE_URL -e SMOKE_SESSION_COOKIE -e SMOKE_READY_WAIT \
+            "$CI_IMAGE" \
+            bash -s smoke < .github/scripts/ci-in-container.sh
+      - name: Remove the container if the job was cancelled
+        if: always()
+        run: docker rm -f elefant-ci-smoke >/dev/null 2>&1 || true
+
+  # ── Report outcome ────────────────────────────────────────────────────────
+  notify:
+    name: Notify
+    needs: [test, test-ui, build, build-amd64, pin-release, deploy, smoke]
+    # Pure shell over the other jobs' results — no checkout, no interpreter.
+    runs-on: [self-hosted, macOS]
+    if: always()
+
+    steps:
+      - name: Report outcome
+        run: |
+          TEST="${{ needs.test.result }}"
+          # Bracketed because the job id has a hyphen in it: `needs.test-ui`
+          # parses as subtraction in a workflow expression and evaluates to a
+          # number, so it would report a result no matter what the job did.
+          TEST_UI="${{ needs['test-ui'].result }}"
+          BUILD="${{ needs.build.result }}"
+          # Bracketed for the same reason as test-ui: `needs.pin-release` would
+          # parse as subtraction.
+          # Skipped while the repo is private, which is not a failure.
+          AMD64="${{ needs['build-amd64'].result }}"
+          PIN="${{ needs['pin-release'].result }}"
+          DEPLOY="${{ needs.deploy.result }}"
+          SMOKE="${{ needs.smoke.result }}"
+          echo "Test: $TEST  Test(memory-ui): $TEST_UI  Build: $BUILD  Build(amd64): $AMD64  Pin: $PIN  Deploy: $DEPLOY  Smoke: $SMOKE"
+          if [[ "$TEST" == "failure" || "$TEST_UI" == "failure" || \
+                "$BUILD" == "failure" || "$AMD64" == "failure" || \
+                "$PIN" == "failure" || \
+                "$DEPLOY" == "failure" || "$DEPLOY" == "cancelled" || \
+                "$SMOKE" == "failure" ]]; then
+            echo "Pipeline failed." && exit 1
+          # A build that produced images and then did not deploy them is a
+          # PIPELINE FAULT, not a quiet no-op, and it used to report green: the
+          # test above only ever asked whether the deploy FAILED. A skipped
+          # deploy is legitimate when nothing was built, or off main, or on a
+          # manual dispatch — so those are excluded rather than the check
+          # weakened.
+          elif [[ "$BUILD" == "success" && "$DEPLOY" == "skipped" && \
+                  "${{ github.event_name }}" == "push" && \
+                  "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "Images were built and pushed, but the deploy did not run."
+            echo "Stage is still on the PREVIOUS release. A skipped job in the"
+            echo "needs graph propagates transitively — check the if: guards."
+            exit 1
+          else
+            echo "Pipeline completed: test=$TEST test-ui=$TEST_UI build=$BUILD amd64=$AMD64 pin=$PIN deploy=$DEPLOY smoke=$SMOKE"
+          fi

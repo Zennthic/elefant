@@ -1,0 +1,40 @@
+name: Feature request
+description: Suggest a change or a new capability.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        To talk an idea through first, start a thread in
+        [Discussions](https://github.com/Zennthic/elefant/discussions).
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you trying to do, and what gets in the way today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would like
+      description: The change you have in mind. Screens or examples help.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      multiple: true
+      options:
+        - Wiki
+        - Memory
+        - Board
+        - MCP tools
+        - Auth, OAuth or SSO
+        - Install and operations
+        - Other

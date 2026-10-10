@@ -1,0 +1,18 @@
+# Direct dependencies only, each pinned exactly. The versions are what the
+# stage image installed when these were last floating, so pinning changed
+# nothing that runs. Dependabot (.github/dependabot.yml) proposes the bumps.
+fastapi==0.142.2
+# Pinned directly, and kept in step with editor/requirements.txt (see there).
+starlette==1.7.0
+uvicorn[standard]==0.29.0
+qdrant-client==1.9.2
+python-frontmatter==1.1.0
+watchdog==4.0.2
+openai==1.109.1
+httpx==0.27.2
+boto3==1.35.99
+# NOTE: sentence-transformers (torch, multi-GB) is the LOCAL embedding backend
+# and lives in requirements-local.txt, installed only into the full image
+# (Dockerfile ARG INCLUDE_LOCAL_EMBEDDINGS=true, the default). The slim image
+# omits it for deployments that use an external/custom embedding backend
+# (EMBEDDING_PROVIDER=openai|custom), which never import it.

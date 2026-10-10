@@ -1,0 +1,116 @@
+# The checks a pull request gets: the ruff lint, the four Python suites and
+# the memory-ui suite. The same script, the same images and the same modes
+# `build-deploy.yml` runs on `main`, so a PR is checked by exactly what will
+# check it after merge.
+#
+# WHY THIS IS ITS OWN WORKFLOW, ON GITHUB-HOSTED RUNNERS
+#
+# `build-deploy.yml` runs on self-hosted machines on the workshop LAN, one of
+# which can reach the cluster API. A pull request can come from a fork, and on
+# `pull_request` the checkout is the fork's code: somebody else's, including
+# its own copy of ci-in-container.sh. That must never run on the LAN, so every
+# job here is `ubuntu-latest`, a disposable machine that knows nothing.
+#
+# The rest follows from the same reasoning, and test_ci_runners.py pins each:
+#
+#   * `pull_request`, NEVER `pull_request_target`. The latter runs with the
+#     base repo's token and secrets against code the PR author controls.
+#   * `contents: read` and nothing else. No secret and no environment is
+#     referenced anywhere in this file, so there is nothing to leak.
+#   * Nothing here builds, pushes or deploys. It only checks.
+#
+# BILLING
+#
+# Hosted minutes are metered on a private repo and the org has run out before
+# (see test_ci_runners.py). They are free on a public one. So every job carries
+# the same guard as `build-amd64`: it does nothing while the repo is private
+# and switches itself on when the repo is published, with no commit needed.
+#
+# The one way past the guard is a manual `workflow_dispatch`. That exists to
+# prove the workflow works before launch: a deliberate run by somebody with
+# write access, never something a PR can trigger.
+name: PR checks
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+# A new push to a PR supersedes the run on the old head. These are only
+# checks, so cancelling is always safe here.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # The same runtimes `build-deploy.yml` checks `main` in. test_ci_runners.py
+  # fails if the two drift apart.
+  CI_IMAGE: python:3.11.16-slim-trixie
+  NODE_CI_IMAGE: node:22-slim
+
+jobs:
+
+  lint:
+    name: Lint (ruff · Pyflakes rules)
+    runs-on: ubuntu-latest
+    if: ${{ !github.event.repository.private || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: ruff check
+        run: |
+          docker run --rm -i \
+            -v "$PWD:/src:ro" -w /work \
+            "$CI_IMAGE" \
+            bash -s lint < .github/scripts/ci-in-container.sh
+
+  test:
+    name: Test ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    if: ${{ !github.event.repository.private || github.event_name == 'workflow_dispatch' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [editor, embedder, memory-api, mcp]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # The same throwaway PostgreSQL `build-deploy.yml` gives memory-api's
+      # integration modules, and the same `-e CI` that makes them fail rather
+      # than skip without it.
+      - name: Start PostgreSQL for the integration tests
+        if: matrix.service == 'memory-api'
+        run: bash .github/scripts/ci-postgres.sh up ${{ matrix.service }}
+      - name: Run pytest in the runtime this service ships
+        run: |
+          docker run --rm -i \
+            -e CI $PG_DOCKER_ARGS \
+            -v "$PWD:/src:ro" -w /work \
+            "$CI_IMAGE" \
+            bash -s test ${{ matrix.service }} < .github/scripts/ci-in-container.sh
+      - name: Remove the PostgreSQL container
+        if: always()
+        run: bash .github/scripts/ci-postgres.sh down ${{ matrix.service }}
+
+  # Also runs the THIRD_PARTY_NOTICES check and the tiptap bundle-drift check:
+  # both live in the script's `test-ui` mode, as they do on `main`.
+  test-ui:
+    name: Test memory-ui (node)
+    runs-on: ubuntu-latest
+    if: ${{ !github.event.repository.private || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Run npm ci && npm test, notices and bundle checks
+        run: |
+          docker run --rm -i \
+            -v "$PWD:/src:ro" -w /work \
+            "$NODE_CI_IMAGE" \
+            bash -s test-ui < .github/scripts/ci-in-container.sh

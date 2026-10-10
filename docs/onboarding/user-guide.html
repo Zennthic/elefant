@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Elefant — User Getting Started Guide</title>
+<style>
+  /* ── Reset & base ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --indigo:      #3f51b5;
+    --indigo-dark: #283593;
+    --indigo-mid:  #5c6bc0;
+    --indigo-pale: #e8eaf6;
+    --indigo-xpale:#f3f4fd;
+    --text:        #1a1a2e;
+    --muted:       #555870;
+    --border:      #dde0ef;
+    --surface:     #ffffff;
+    --danger:      #c62828;
+    --success:     #2e7d32;
+    --amber:       #f57f17;
+    --font:        "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --mono:        "JetBrains Mono", "Fira Code", "Courier New", monospace;
+  }
+
+  html { font-size: 10.5pt; }
+
+  body {
+    font-family: var(--font);
+    color: var(--text);
+    background: #fff;
+    line-height: 1.65;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 0 0 60px;
+  }
+
+  /* ── Cover ── */
+  .cover {
+    background: linear-gradient(135deg, var(--indigo-dark) 0%, var(--indigo) 60%, var(--indigo-mid) 100%);
+    color: #fff;
+    padding: 56px 56px 48px;
+    position: relative;
+    overflow: hidden;
+  }
+  .cover::after {
+    content: "";
+    position: absolute;
+    right: -40px; top: -40px;
+    width: 260px; height: 260px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.05);
+  }
+  .cover-logo {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 40px;
+  }
+  .cover-logo svg { width: 180px; height: auto; color: #fff; }
+  .cover-doc-type {
+    font-size: 9pt;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    opacity: 0.7;
+    margin-bottom: 10px;
+  }
+  .cover h1 {
+    font-size: 28pt;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    line-height: 1.15;
+    margin-bottom: 16px;
+  }
+  .cover-sub {
+    font-size: 11pt;
+    opacity: 0.85;
+    max-width: 480px;
+    line-height: 1.5;
+  }
+  .cover-meta {
+    margin-top: 36px;
+    font-size: 8.5pt;
+    opacity: 0.6;
+    letter-spacing: 0.5px;
+  }
+
+  /* ── TOC ── */
+  .toc-section {
+    background: var(--indigo-xpale);
+    border-bottom: 1px solid var(--border);
+    padding: 36px 56px;
+  }
+  .toc-title {
+    font-size: 9pt;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--indigo);
+    margin-bottom: 18px;
+  }
+  .toc-list { list-style: none; }
+  .toc-list li {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    padding: 3px 0;
+    font-size: 10pt;
+  }
+  .toc-list .toc-num { color: var(--indigo); font-weight: 700; min-width: 22px; }
+  .toc-list .toc-dots { flex: 1; border-bottom: 1px dotted var(--border); margin: 0 6px; }
+
+  /* ── Page content ── */
+  .page { padding: 44px 56px; }
+
+  /* ── Section headings ── */
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 22px;
+    padding-top: 14px;
+  }
+  .section-num {
+    background: var(--indigo);
+    color: #fff;
+    font-size: 9pt;
+    font-weight: 700;
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  h2 {
+    font-size: 16pt;
+    font-weight: 700;
+    color: var(--indigo-dark);
+    letter-spacing: -0.2px;
+  }
+  h3 {
+    font-size: 11.5pt;
+    font-weight: 700;
+    color: var(--indigo);
+    margin: 24px 0 10px;
+    padding-left: 12px;
+    border-left: 3px solid var(--indigo-pale);
+  }
+  h4 {
+    font-size: 10pt;
+    font-weight: 700;
+    color: var(--text);
+    margin: 16px 0 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
+
+  /* ── Divider ── */
+  .section-divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 42px 0;
+  }
+
+  /* ── Body text ── */
+  p { margin-bottom: 12px; }
+
+  /* ── Lists ── */
+  ul, ol { margin: 10px 0 14px 20px; }
+  li { margin-bottom: 5px; }
+  li strong { color: var(--indigo-dark); }
+
+  /* ── Callout boxes ── */
+  .callout {
+    border-radius: 6px;
+    padding: 14px 18px;
+    margin: 16px 0;
+    font-size: 9.5pt;
+    line-height: 1.55;
+  }
+  .callout-title {
+    font-weight: 700;
+    font-size: 9pt;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 5px;
+  }
+  .callout.info    { background: var(--indigo-xpale); border-left: 4px solid var(--indigo); }
+  .callout.info .callout-title { color: var(--indigo); }
+  .callout.tip     { background: #f1f8e9; border-left: 4px solid var(--success); }
+  .callout.tip .callout-title  { color: var(--success); }
+  .callout.warning { background: #fff8e1; border-left: 4px solid var(--amber); }
+  .callout.warning .callout-title { color: var(--amber); }
+  .callout.platform { background: #ede7f6; border-left: 4px solid #6a1b9a; }
+  .callout.platform .callout-title { color: #4527a0; }
+
+  /* ── Code ── */
+  code {
+    font-family: var(--mono);
+    font-size: 8.5pt;
+    background: var(--indigo-xpale);
+    color: var(--indigo-dark);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+  pre {
+    font-family: var(--mono);
+    font-size: 8.5pt;
+    background: #f5f5f5;
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--indigo-mid);
+    border-radius: 4px;
+    padding: 14px 16px;
+    margin: 14px 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.6;
+    color: #1a1a2e;
+  }
+  pre .comment { color: #888; }
+  pre .key     { color: var(--indigo); }
+  pre .value   { color: var(--success); }
+
+  /* ── Steps ── */
+  .steps { list-style: none; margin: 14px 0; }
+  .steps li {
+    display: flex;
+    gap: 14px;
+    margin-bottom: 14px;
+    align-items: flex-start;
+  }
+  .step-num {
+    background: var(--indigo-pale);
+    color: var(--indigo-dark);
+    font-weight: 700;
+    font-size: 9pt;
+    min-width: 26px; height: 26px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .step-body { flex: 1; }
+  .step-body p { margin: 0 0 6px; }
+
+  /* ── Checklist ── */
+  .checklist { list-style: none; margin: 10px 0 16px; }
+  .checklist li {
+    padding: 6px 10px;
+    margin-bottom: 4px;
+    border-radius: 4px;
+    font-size: 9.5pt;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .checklist li::before { content: "☐"; font-size: 12pt; line-height: 1; flex-shrink: 0; }
+  .checklist li.done::before { content: "☑"; color: var(--success); }
+
+  /* ── Platform tabs (OS selector visual) ── */
+  .os-tabs {
+    display: flex;
+    gap: 0;
+    margin: 16px 0 0;
+    border-bottom: 2px solid var(--indigo-pale);
+  }
+  .os-tab {
+    padding: 7px 18px;
+    font-size: 9pt;
+    font-weight: 600;
+    color: var(--muted);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+  }
+  .os-tab.active { color: var(--indigo); border-bottom-color: var(--indigo); }
+
+  /* ── Table ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 14px 0 20px;
+    font-size: 9.5pt;
+  }
+  th {
+    background: var(--indigo);
+    color: #fff;
+    text-align: left;
+    padding: 9px 12px;
+    font-size: 8.5pt;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+  td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  tr:nth-child(even) td { background: var(--indigo-xpale); }
+
+  /* ── Permission grid ── */
+  .feature-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 14px 0;
+  }
+  .feature-card {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 14px;
+    font-size: 9.5pt;
+  }
+  .feature-card strong { display: block; color: var(--indigo); margin-bottom: 4px; font-size: 10pt; }
+
+  /* ── Big file path ── */
+  .filepath {
+    display: block;
+    background: #1a1a2e;
+    color: #8b9dff;
+    font-family: var(--mono);
+    font-size: 9pt;
+    padding: 10px 16px;
+    border-radius: 4px;
+    margin: 8px 0 14px;
+    word-break: break-all;
+  }
+
+  /* ── Prompt block ── */
+  .prompt-block {
+    background: #0f1217;
+    color: #d1d5db;
+    font-family: var(--mono);
+    font-size: 8.5pt;
+    padding: 16px 18px;
+    border-radius: 6px;
+    border-left: 4px solid var(--indigo-mid);
+    margin: 14px 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.65;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .prompt-block .ph { color: #f0a940; font-style: italic; }
+
+  /* ── Footer ── */
+  .footer {
+    background: var(--indigo-dark);
+    color: rgba(255,255,255,0.7);
+    padding: 20px 56px;
+    font-size: 8.5pt;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 60px;
+  }
+
+  /* ── Print ── */
+  @media print {
+    html { font-size: 10pt; }
+    body { max-width: none; padding: 0; }
+    .cover, .prompt-block, th, .section-num, .footer, .callout, .step-num {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    h2, h3 { page-break-after: avoid; }
+    pre, table, .prompt-block { page-break-inside: avoid; }
+    .page-break { page-break-before: always; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Cover ── -->
+<div class="cover">
+  <div class="cover-logo">
+    <svg viewBox="0 0 400 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <g transform="translate(10, 38)">
+        <path d="M 48 18 Q 51 15 54 21 Q 52.5 22.5 49.5 21 Q 48 19.5 48 18 Z" fill="currentColor"/>
+        <path d="M 22.5 27 Q 21 33 22.5 42 L 19.5 43.5 Q 18 34.5 19.5 27 Z" fill="currentColor"/>
+        <path d="M 30 39 L 28.5 54 L 31.5 54 L 31.5 39 Z" fill="currentColor"/>
+        <path d="M 39 39 L 39 54 L 42 54 L 40.5 39 Z" fill="currentColor"/>
+        <ellipse cx="33" cy="30" rx="16.5" ry="15" fill="currentColor" fill-opacity="0.15" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M 42 21 Q 43.5 24 40.5 28.5" fill="none" stroke="currentColor" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="39" cy="25.5" r="1.2" fill="currentColor"/>
+      </g>
+      <text x="70" y="68" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="48" font-weight="700" fill="currentColor" letter-spacing="-0.5">Elefant</text>
+    </svg>
+  </div>
+  <div class="cover-doc-type">User Getting Started Guide</div>
+  <h1>Your AI Memory,<br>Your Way</h1>
+  <div class="cover-sub">Get connected to Elefant in under 15 minutes. Your AI assistant will have access to your team's knowledge base and a persistent memory layer — across every session, every tool.</div>
+  <div class="cover-meta">For Elefant users</div>
+</div>
+
+<!-- ── TOC ── -->
+<div class="toc-section">
+  <div class="toc-title">Contents</div>
+  <ol class="toc-list">
+    <li><span class="toc-num">1</span> What Elefant Does for You <span class="toc-dots"></span></li>
+    <li><span class="toc-num">2</span> Accepting Your Invite &amp; First Login <span class="toc-dots"></span></li>
+    <li><span class="toc-num">3</span> Creating Your API Token <span class="toc-dots"></span></li>
+    <li><span class="toc-num">4</span> Connecting Claude Desktop <span class="toc-dots"></span></li>
+    <li><span class="toc-num">5</span> Connecting Claude Code CLI <span class="toc-dots"></span></li>
+    <li><span class="toc-num">6</span> Connecting via OAuth (Claude.ai) <span class="toc-dots"></span></li>
+    <li><span class="toc-num">7</span> Telling Your AI to Use Elefant <span class="toc-dots"></span></li>
+    <li><span class="toc-num">8</span> Using the Wiki <span class="toc-dots"></span></li>
+    <li><span class="toc-num">9</span> Using the Board <span class="toc-dots"></span></li>
+    <li><span class="toc-num">10</span> Managing Your Memories <span class="toc-dots"></span></li>
+    <li><span class="toc-num">11</span> Getting Help <span class="toc-dots"></span></li>
+  </ol>
+</div>
+
+<div class="page">
+
+<!-- ── Section 1 ── -->
+<div class="section-header">
+  <div class="section-num">1</div>
+  <h2>What Elefant Does for You</h2>
+</div>
+
+<p>Elefant is two things in one: a <strong>team Wiki</strong> and a <strong>personal AI memory layer</strong>. Both are searchable by your AI assistant (Claude, Cursor, and others) using the open MCP standard — no vendor lock-in, no data leaving your org's infrastructure.</p>
+
+<div class="feature-grid">
+  <div class="feature-card">
+    <strong>📖 Wiki — shared knowledge</strong>
+    Markdown documents your team maintains: SOPs, runbooks, architecture notes, decisions. Your AI can search and read these automatically when you ask it a relevant question.
+  </div>
+  <div class="feature-card">
+    <strong>🧠 Memories — your persistent context</strong>
+    Facts, preferences, and decisions you (or your AI) store. These persist across every session and every tool. Your AI remembers what you've told it — even weeks later.
+  </div>
+  <div class="feature-card">
+    <strong>🔒 Private by default</strong>
+    Your memories belong to your org. Nothing is sent to Anthropic, OpenAI, or any other AI vendor. The AI reads from Elefant — it doesn't store to it behind your back.
+  </div>
+  <div class="feature-card">
+    <strong>🔌 Works everywhere</strong>
+    Same connection works in Claude Desktop, Claude Code CLI, Cursor, and any MCP-compatible tool. One setup; it follows you across your workflow.
+  </div>
+</div>
+
+<hr class="section-divider">
+
+<!-- ── Section 2 ── -->
+<div class="section-header">
+  <div class="section-num">2</div>
+  <h2>Accepting Your Invite &amp; First Login</h2>
+</div>
+
+<p>Your org admin will send you a one-time invite link. Here's what to expect when you open it:</p>
+
+<ol class="steps">
+  <li>
+    <span class="step-num">1</span>
+    <div class="step-body">
+      <p><strong>Open the invite link.</strong> It looks like: <code>https://your-domain.com/invite/&lt;token&gt;</code></p>
+      <p>The link is single-use and expires in 7 days. Don't forward it to anyone else.</p>
+    </div>
+  </li>
+  <li>
+    <span class="step-num">2</span>
+    <div class="step-body">
+      <p><strong>Set your password.</strong> Choose a strong, unique password. You'll be asked to confirm it.</p>
+    </div>
+  </li>
+  <li>
+    <span class="step-num">3</span>
+    <div class="step-body">
+      <p><strong>Enrol in MFA.</strong> Scan the QR code with an authenticator app (Google Authenticator, Authy, or any TOTP app). Enter the 6-digit code to confirm enrolment.</p>
+    </div>
+  </li>
+  <li>
+    <span class="step-num">4</span>
+    <div class="step-body">
+      <p><strong>You're in.</strong> You'll land on the Elefant home screen. Your Wiki and Memories tabs are ready to use.</p>
+    </div>
+  </li>
+</ol>
+
+<div class="callout warning">
+  <div class="callout-title">MFA is required</div>
+  Multi-factor authentication is mandatory for all users. Make sure your authenticator app is backed up (e.g., via iCloud Keychain or your password manager). If you lose access to your MFA device, contact your org admin.
+</div>
+
+<p>On future logins, go to <code>https://your-domain.com/login</code>. Enter your username and password, then your MFA code.</p>
+
+<hr class="section-divider">
+
+<!-- ── Section 3 ── -->
+<div class="section-header">
+  <div class="section-num">3</div>
+  <h2>Creating Your API Token</h2>
+</div>
+
+<p>Your AI tools connect to Elefant using a <strong>personal API token</strong>. Think of it as a key that lets your AI assistant into your knowledge base. You create it once and paste it into your Claude config.</p>
+
+<ol class="steps">
+  <li>
+    <span class="step-num">1</span>
+    <div class="step-body">
+      <p>Log in to Elefant and click your name at the top right to open <strong>My Settings</strong>.</p>
+    </div>
+  </li>
+  <li>
+    <span class="step-num">2</span>
+    <div class="step-body">
+      <p>Scroll to <strong>API tokens</strong>.</p>
+    </div>
+  </li>
+  <li>
+    <span class="step-num">3</span>
+    <div class="step-body">
+      <p>Click <strong>+ New token</strong>. Give it a descriptive name, e.g., <code>claude-desktop</code>. Make sure these are on:</p>
+      <ul>
+        <li>✅ Memory read</li>
+        <li>✅ Memory write (off by default; without it your assistant cannot capture)</li>
+        <li>✅ Wiki read</li>
+        <li>✅ Board read</li>
+      </ul>
+      <p>Wiki write lets the assistant write pages, but only in the AI folder. Turn on Board write if the assistant should add and move cards.</p>
+    </div>
+  </li>
+  <li>
+    <span class="step-num">4</span>
+    <div class="step-body">
+      <p><strong>Copy the token immediately.</strong> It is shown exactly once. Paste it into a password manager or directly into your Claude config (next section) right away.</p>
+    </div>
+  </li>
+</ol>
+
+<div class="callout warning">
+  <div class="callout-title">Token shown once</div>
+  If you lose the token before using it, delete it and create a new one. Never share your token with anyone — it grants access as you.
+</div>
+
+<hr class="section-divider">
+
+<!-- ── Section 4 ── -->
+<div class="section-header">
+  <div class="section-num">4</div>
+  <h2>Connecting Claude Desktop</h2>
+</div>
+
+<p>Claude Desktop reads MCP server configuration from a JSON file on your computer. You'll edit this file once and then Claude Desktop connects automatically every time it starts.</p>
+
+<h3>macOS</h3>
+
+<p>Open this file in any text editor (it may not exist yet — create it if needed):</p>
+<span class="filepath">~/Library/Application Support/Claude/claude_desktop_config.json</span>
+
+<h3>Windows</h3>
+<span class="filepath">%APPDATA%\Claude\claude_desktop_config.json</span>
+
+<h3>Configuration to add</h3>
+
+<p>Paste the following into the file, replacing the two placeholder values. If the file already has content, merge the <code>"mcpServers"</code> key into the existing object — don't overwrite the whole file.</p>
+
+<pre>{
+  "mcpServers": {
+    <span class="key">"elefant"</span>: {
+      <span class="key">"url"</span>: <span class="value">"https://YOUR-DOMAIN.com/mcp"</span>,
+      <span class="key">"transport"</span>: <span class="value">"streamable-http"</span>,
+      <span class="key">"headers"</span>: {
+        <span class="key">"Authorization"</span>: <span class="value">"Bearer YOUR-TOKEN-HERE"</span>
+      }
+    }
+  }
+}</pre>
+
+<p>Replace:</p>
+<ul>
+  <li><code>YOUR-DOMAIN.com</code> → the domain your org admin gave you</li>
+  <li><code>YOUR-TOKEN-HERE</code> → the token you created in Section 3</li>
+</ul>
+
+<ol class="steps">
+  <li><span class="step-num">5</span><div class="step-body"><strong>Save the file</strong> and <strong>restart Claude Desktop</strong> completely (quit and reopen).</div></li>
+  <li><span class="step-num">6</span><div class="step-body">In a new conversation, look for the 🔌 <strong>tools icon</strong> in the input bar. Click it — you should see "elefant" listed with tools like <code>unified_search</code>, <code>memory_add</code>, etc.</div></li>
+</ol>
+
+<div class="callout tip">
+  <div class="callout-title">Verify the connection</div>
+  Ask Claude: <em>"Search my Elefant knowledge base for anything about [a topic your org has documented]."</em> If it returns results, you're connected.
+</div>
+
+<div class="callout info">
+  <div class="callout-title">Claude Desktop version requirement</div>
+  Remote MCP (Streamable HTTP) requires Claude Desktop 0.10 or later. Update if you see an error about unsupported transport.
+</div>
+
+<hr class="section-divider">
+
+<!-- ── Section 5 ── -->
+<div class="section-header">
+  <div class="section-num">5</div>
+  <h2>Connecting Claude Code CLI</h2>
+</div>
+
+<p>Claude Code (the terminal CLI) uses MCP servers defined in a <code>.mcp.json</code> file. You can configure Elefant globally (available in every project) or per-project.</p>
+
+<h3>Option A — Global config (recommended)</h3>
+
+<p>Run this command in your terminal, replacing the placeholders:</p>
+
+<pre>claude mcp add --transport streamable-http \
+  --header "Authorization: Bearer YOUR-TOKEN-HERE" \
+  elefant https://YOUR-DOMAIN.com/mcp</pre>
+
+<p>This writes to your global Claude Code MCP config and makes Elefant available in every session.</p>
+
+<h3>Option B — Project config (<code>.mcp.json</code>)</h3>
+
+<p>In your project root, create or edit <code>.mcp.json</code>:</p>
+
+<pre>{
+  "mcpServers": {
+    "elefant": {
+      "url": "https://YOUR-DOMAIN.com/mcp",
+      "transport": "streamable-http",
+      "headers": {
+        "Authorization": "Bearer YOUR-TOKEN-HERE"
+      }
+    }
+  }
+}</pre>
+
+<div class="callout warning">
+  <div class="callout-title">Don't commit your token</div>
+  If using per-project <code>.mcp.json</code>, add it to <code>.gitignore</code>. Your token is a credential — treat it like a password.
+</div>
+
+<h3>Verify in Claude Code</h3>
+
+<p>Start a session and run:</p>
+<pre>/mcp</pre>
+<p>You should see <code>elefant</code> listed as a connected server. From then on, Claude Code will automatically call Elefant tools when relevant.</p>
+
+<hr class="section-divider">
+
+<!-- ── Section 6 ── -->
+<div class="section-header">
+  <div class="section-num">6</div>
+  <h2>Connecting via OAuth (Claude.ai web &amp; mobile)</h2>
+</div>
+
+<p>For the Claude.ai web app and the Claude mobile app (including on iPad), Elefant supports <strong>OAuth-based MCP Connectors</strong>. This is the recommended approach for mobile: no token to paste, no config file — just a URL and a login.</p>
+
+<h3>Adding the MCP Connector</h3>
+
+<ol class="steps">
+  <li>
+    <span class="step-num">1</span>
+    <div class="step-body">
+      <p>Open Claude.ai → <strong>Settings</strong> → <strong>Connectors</strong> (or <strong>MCP Servers</strong>, depending on your version).</p>
+    </div>
+  </li>
+  <li>
+    <span class="step-num">2</span>
+    <div class="step-body">
+      <p>Click <strong>Add Connector</strong> and enter the URL:<br>
+      <code>https://YOUR-DOMAIN.com/mcp</code></p>
+    </div>
+  </li>
+  <li>
+    <span class="step-num">3</span>
+    <div class="step-body">
+      <p>Claude.ai will redirect you to the Elefant <strong>OAuth consent screen</strong>. Log in with your Elefant username and password (plus your MFA code), then click <strong>Authorise</strong>.</p>
+    </div>
+  </li>
+  <li>
+    <span class="step-num">4</span>
+    <div class="step-body">
+      <p>You're returned to Claude.ai. The connector is now active — no token required.</p>
+    </div>
+  </li>
+</ol>
+
+<div class="callout platform">
+  <div class="callout-title">iPad &amp; iPhone</div>
+  On the Claude mobile app, go to <strong>Settings → Connectors</strong> and follow the same steps. This works identically to the web app. The OAuth flow opens in your browser and returns you to the app after authorisation.
+</div>
+
+<h3>Managing your OAuth sessions</h3>
+<p>To view, adjust, or revoke active OAuth sessions, log in to Elefant → <strong>Profile</strong> → <strong>OAuth sessions</strong>. Each session lists the scopes it holds (wiki read/write, memory read/write). Use <strong>Edit</strong> to add or remove a scope in place — for example, enabling <em>wiki write</em> you skipped at sign-in — without revoking and re-pairing the client. An edited session is tagged <strong>edited</strong> so you can tell it apart from one that still matches the consent you originally approved. Use <strong>Revoke</strong> to end a session entirely; Claude.ai will prompt you to re-authorise on next use.</p>
+
+<hr class="section-divider">
+
+<!-- ── Section 7 ── -->
+<div class="section-header">
+  <div class="section-num">7</div>
+  <h2>Telling Your AI to Use Elefant</h2>
+</div>
+
+<p>Once connected, Claude already knows how to use Elefant's tools — but it works much better when you give it <strong>explicit instructions</strong> to treat Elefant as its first-class memory source. Add these to your Claude settings and, if using Claude Code, your project's <code>CLAUDE.md</code>.</p>
+
+<h3>Claude Desktop — Custom System Prompt</h3>
+
+<p>In Claude Desktop → <strong>Settings → Custom Instructions</strong> (or "System Prompt"), add:</p>
+
+<div class="prompt-block">You have access to an Elefant knowledge base and memory store via MCP tools.
+
+MEMORY PROTOCOL:
+- Before answering any question that may be covered by past decisions, preferences, or prior work, call unified_search with a relevant query.
+- After any session where significant decisions, preferences, or facts were established, call memory_add to store them for future sessions.
+- When I ask you to "remember" something, always call memory_add immediately.
+- When I ask "what do you know about X" or "have we discussed X", call unified_search first.
+
+SEARCH STRATEGY:
+- Use unified_search as your default — it searches both wiki and memories together.
+- Use wiki_search_only when I'm asking about documented procedures or reference material.
+- Use memory_search when I'm asking about personal preferences, past decisions, or stored facts.
+
+TAG CONVENTION for memory_add:
+- Add relevant topic tags: e.g. ["project-name", "decision", "infrastructure"]
+- For important decisions, add the "decision" tag.
+- For preferences and config, add "preference".
+- For how-to procedures, add "procedure".</div>
+
+<h3>Claude Code CLI — <code>CLAUDE.md</code></h3>
+
+<p>Create or edit <code>CLAUDE.md</code> in your project root (or <code>~/.claude/CLAUDE.md</code> for a global config):</p>
+
+<div class="prompt-block"><span class="ph"># Project: [Your Project Name]</span>
+
+## Memory &amp; Knowledge Base
+
+You are connected to an Elefant knowledge base via the `elefant` MCP server.
+
+**Always search before answering** questions about this project, its history, decisions, or
+conventions. Use `unified_search` with a relevant query before coding or advising.
+
+**Store important facts**: after any session where significant architectural decisions,
+API contracts, or conventions are established, use `memory_add` to preserve them.
+
+**Memory tags to use for this project**: <span class="ph">[your-project-slug]</span>, decision, architecture,
+convention, api, preference.
+
+**Search first, then code**: if a question touches existing patterns, past decisions,
+or team conventions — search Elefant before writing new code.
+
+## When to search Elefant
+- Before suggesting an approach to a problem: check if we've solved it before
+- Before writing a configuration: check if the team has a standard
+- When the user references "what we decided" or "how we do things"
+- When starting a new session on this project</div>
+
+<h3>Claude.ai — Custom Instructions</h3>
+
+<p>In Claude.ai → <strong>Profile → Custom Instructions</strong>, add the same Memory Protocol block from above. This applies to all Claude.ai conversations where the Elefant connector is active.</p>
+
+<div class="callout tip">
+  <div class="callout-title">Quick test</div>
+  After adding the instructions, start a new conversation and say: <em>"Search Elefant for anything related to [your project or team name]."</em> Claude should call <code>unified_search</code> and return any matching wiki pages or memories.
+</div>
+
+<hr class="section-divider">
+
+<!-- ── Section 8 ── -->
+<div class="section-header">
+  <div class="section-num">8</div>
+  <h2>Using the Wiki</h2>
+</div>
+
+<p>The Wiki is your team's shared knowledge base — think of it as a private, AI-searchable notion or Confluence. You can read pages, create new ones, and organise content in folders.</p>
+
+<h3>Navigating the Wiki</h3>
+
+<ol class="steps">
+  <li><span class="step-num">1</span><div class="step-body">Go to <code>https://your-domain.com/</code> and select the <strong>Wiki</strong> tab.</div></li>
+  <li><span class="step-num">2</span><div class="step-body">The left panel is the <strong>File Tree</strong> — folders and pages organised by your admin. Click any folder to expand it; click a page to view it.</div></li>
+  <li><span class="step-num">3</span><div class="step-body">Click <strong>Edit</strong> in the top-right of any page to start editing inline. The editor supports Markdown with a live preview.</div></li>
+</ol>
+
+<h3>Creating New Content</h3>
+
+<table>
+  <tr><th>What you want to do</th><th>How</th></tr>
+  <tr>
+    <td>New page inside a folder</td>
+    <td>Hover the folder in the tree → click the 📄 icon → enter a filename</td>
+  </tr>
+  <tr>
+    <td>New page at root level</td>
+    <td>Hover "File Tree" header → click the 📄 icon → enter a filename</td>
+  </tr>
+  <tr>
+    <td>New subfolder</td>
+    <td>Hover a folder → click <strong>+</strong> → enter folder name</td>
+  </tr>
+  <tr>
+    <td>New root folder</td>
+    <td>Hover "File Tree" header → click <strong>+</strong></td>
+  </tr>
+</table>
+
+<h3>Editing &amp; Saving</h3>
+
+<ol class="steps">
+  <li><span class="step-num">1</span><div class="step-body">Click <strong>Edit</strong> on any page. The page becomes an editable Markdown textarea.</div></li>
+  <li><span class="step-num">2</span><div class="step-body">Write in Markdown: <code># Heading</code>, <code>**bold**</code>, <code>- bullet</code>, <code>```code```</code>, etc.</div></li>
+  <li><span class="step-num">3</span><div class="step-body">Click <strong>Save</strong>. Your changes are committed immediately and the page is re-indexed for AI search.</div></li>
+</ol>
+
+<div class="callout info">
+  <div class="callout-title">AI can find what you write</div>
+  After saving, your page is automatically re-embedded and searchable by AI. Changes typically appear in AI search results within 30 seconds of saving.
+</div>
+
+<h3>Writing Tips for AI Discoverability</h3>
+
+<ul>
+  <li><strong>Use clear, descriptive headings</strong> — the AI searches full text, but headings anchor meaning.</li>
+  <li><strong>Add tags</strong> at the top of pages (frontmatter: <code>tags: [infrastructure, runbook]</code>) — these filter AI results.</li>
+  <li><strong>Write decisions explicitly</strong>: "We decided to use X because Y" is better than "X is used here."</li>
+  <li><strong>Prefer prose over bullet-only lists</strong> for context-heavy knowledge — semantic search rewards natural language.</li>
+</ul>
+
+<hr class="section-divider">
+
+<!-- ── Section 9 ── -->
+<div class="section-header">
+  <div class="section-num">9</div>
+  <h2>Using the Board</h2>
+</div>
+
+<p>The Board is a Kanban board for work and ideas, shared by your org and by your AI assistants. A card is a title and a description in a column. Use it for the things you are not doing right now but must not forget.</p>
+
+<h3>Working with cards</h3>
+
+<table>
+  <tr><th>What you want to do</th><th>How</th></tr>
+  <tr>
+    <td>Add a card</td>
+    <td>Select the <strong>Board</strong> tab → <strong>+ New card</strong> → enter a title → <strong>Add card</strong></td>
+  </tr>
+  <tr>
+    <td>Move a card</td>
+    <td>Drag it to another column, or to another place in the same column</td>
+  </tr>
+  <tr>
+    <td>Discuss a card</td>
+    <td>Open it and add a comment. Comments keep what happened to a card; the description says what the work is.</td>
+  </tr>
+  <tr>
+    <td>Attach a file</td>
+    <td>Open the card and add an attachment</td>
+  </tr>
+  <tr>
+    <td>Classify a card</td>
+    <td>Add labels, for example <code>bug</code>. You can filter the board by label.</td>
+  </tr>
+  <tr>
+    <td>Link cards</td>
+    <td>Link a card to another card as related, or say that one <em>blocks</em> the other</td>
+  </tr>
+  <tr>
+    <td>Link a wiki page</td>
+    <td>Link the page to the card. A wiki link to a card shows the card's live status.</td>
+  </tr>
+  <tr>
+    <td>Finish a card</td>
+    <td>Close it. A closed card is kept and can be reopened.</td>
+  </tr>
+</table>
+
+<div class="callout info">
+  <div class="callout-title">The board updates live</div>
+  When another person or an AI assistant changes a card, the board in your browser shows the change without a reload.
+</div>
+
+<h3>Your AI and the board</h3>
+
+<p>Assistants work the board with the MCP <code>card_*</code> tools. When you float an idea that you are not building yet, the assistant can file it as a card. When you say <strong>"note to self"</strong>, it files a card for you. To let an assistant add and move cards, turn on <strong>Board write</strong> on its API token or OAuth session.</p>
+
+<hr class="section-divider">
+
+<!-- ── Section 10 ── -->
+<div class="section-header">
+  <div class="section-num">10</div>
+  <h2>Managing Your Memories</h2>
+</div>
+
+<p>Memories are short, structured facts stored by you or your AI assistant. Unlike wiki pages (which are team-authored documents), memories are personal context — preferences, decisions, and things you've told your AI that should persist across sessions.</p>
+
+<h3>Viewing Your Memories</h3>
+
+<p>Go to <code>https://your-domain.com/</code> → <strong>Memories</strong> tab. You'll see all memories stored for your org, in reverse chronological order. Use the search bar to find specific memories.</p>
+
+<h3>Memory Types</h3>
+
+<table>
+  <tr><th>Type</th><th>Use for</th><th>Example</th></tr>
+  <tr><td><code>fact</code></td><td>Stable truths, preferences, configs</td><td>"I prefer TypeScript strict mode in all projects."</td></tr>
+  <tr><td><code>decision</code></td><td>Choices made that affect future work</td><td>"We decided to use PostgreSQL, not MySQL, because of JSONB support."</td></tr>
+  <tr><td><code>procedure</code></td><td>Step-by-step how-tos</td><td>"To deploy: run ./deploy.sh production, then verify at /health."</td></tr>
+  <tr><td><code>event</code></td><td>Time-stamped occurrences</td><td>"Deployed v2.3.0 on 2025-05-10. Incident-free."</td></tr>
+  <tr><td><code>derived</code></td><td>AI-synthesised insights</td><td>"Pattern: auth bugs cluster around session expiry edge cases."</td></tr>
+</table>
+
+<h3>Adding a Memory</h3>
+
+<p><strong>Via Claude (recommended):</strong> Just say <em>"Remember that [fact]"</em> and Claude will call <code>memory_add</code> automatically.</p>
+
+<p><strong>Via the Elefant UI:</strong> Memories tab → <strong>Add Memory</strong> → paste the content → select a type and tags → Save.</p>
+
+<h3>Editing or Deleting a Memory</h3>
+
+<p>In the Memories tab, each memory has <strong>Edit</strong> and <strong>Delete</strong> buttons. Edit to correct outdated information; delete if it's no longer relevant. Deleted memories are permanent — there is no undo.</p>
+
+<h3>Tag Best Practices</h3>
+
+<ul>
+  <li>Use consistent tags across related memories: <code>project-name</code>, <code>infra</code>, <code>api</code>, etc.</li>
+  <li>Claude uses tags to filter searches — consistent tagging makes AI retrieval much more precise.</li>
+  <li>Keep tag names lowercase and hyphenated: <code>code-style</code> not <code>Code Style</code>.</li>
+</ul>
+
+<h3>Backup &amp; Export</h3>
+
+<p>You can export all your org's memories at any time: <strong>Settings</strong> → <strong>Memory Backup</strong> → <strong>Download</strong>. The export is a portable JSON file you own and can import elsewhere.</p>
+
+<hr class="section-divider">
+
+<!-- ── Section 11 ── -->
+<div class="section-header">
+  <div class="section-num">11</div>
+  <h2>Getting Help</h2>
+</div>
+
+<p>Here's where to go when something isn't working:</p>
+
+<h3>Common issues</h3>
+
+<table>
+  <tr><th>Problem</th><th>Solution</th></tr>
+  <tr>
+    <td>Claude says it can't find the Elefant tools</td>
+    <td>Check that you restarted Claude Desktop after editing the config. Run <code>/mcp</code> in Claude Code to verify server status.</td>
+  </tr>
+  <tr>
+    <td>Token rejected / 401 errors</td>
+    <td>The token may have expired or been deleted. Create a new one in My Settings → API tokens and update your config.</td>
+  </tr>
+  <tr>
+    <td>Memories appear to be empty after restoring from backup</td>
+    <td>Allow 1–2 minutes for re-embedding to complete. If still empty, contact your org admin.</td>
+  </tr>
+  <tr>
+    <td>Lost MFA device</td>
+    <td>Contact your org admin — they can reset your MFA enrolment.</td>
+  </tr>
+  <tr>
+    <td>Can't log in</td>
+    <td>Try clearing cookies and retrying. If the invite link has expired, ask your admin for a new one.</td>
+  </tr>
+</table>
+
+<h3>Contact</h3>
+
+<p>Reach your org admin first — they can resolve most account-level issues. For platform-level issues they can't address, your admin will escalate to the Elefant support team.</p>
+
+<div class="callout tip">
+  <div class="callout-title">Feedback welcome</div>
+  Your experience shapes the product. If something feels clunky or you hit a rough edge, please let your org admin know — even a brief description helps us improve.
+</div>
+
+</div>
+
+<!-- ── Footer ── -->
+<div class="footer">
+  <span>Elefant · User Getting Started Guide</span>
+  <span>Open source (Apache-2.0) · © Zennthic LLC</span>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,47 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# An example overlay: the four things a real cluster usually has to add to the
+# base. Copy this directory, change every value marked CHANGE THIS, and apply
+# your copy. Nothing here belongs in ../../base, which has to run anywhere.
+namespace: elefant
+
+resources:
+  - ../../base
+  - ingress.yaml
+
+patches:
+  # Pin every claim to a named storage class. The base leaves it unset, so
+  # the claims land on the cluster default.
+  - path: storageclass-patch.yaml
+    target:
+      kind: PersistentVolumeClaim
+  # Reference an image pull secret, for a private registry or a mirror. The
+  # published images are public, so most installs can drop this patch.
+  - path: pull-secret-patch.yaml
+    target:
+      kind: Deployment
+  # Postgres and Qdrant do the sustained writing, so keep them off nodes with
+  # slow or fragile storage. Everything else may land anywhere.
+  - path: storage-node-affinity-patch.yaml
+    target:
+      kind: Deployment
+      name: postgres
+  - path: storage-node-affinity-patch.yaml
+    target:
+      kind: Deployment
+      name: qdrant
+
+configMapGenerator:
+  # `behavior: merge` overrides only the keys named here and leaves the rest
+  # of the base ConfigMap alone.
+  - name: elefant-config
+    behavior: merge
+    literals:
+      # CHANGE THIS. Must match the host in ingress.yaml.
+      - ELEFANT_PUBLIC_DOMAIN=elefant.example.com
+
+labels:
+  - includeSelectors: false
+    pairs:
+      app.kubernetes.io/instance: example

@@ -1,0 +1,44 @@
+# ── Elefant – Traefik override ─────────────────────────────────────────────
+#
+# Puts a Traefik reverse proxy in front of the stack and takes TLS off nginx's
+# hands. Use it on a host that already runs Traefik for other services; it is
+# NOT needed for an ordinary self-hosted install.
+#
+# Use it:
+#   docker compose -f docker-compose.yml -f docker-compose.traefik.yml up -d
+#
+# It is a separate file rather than part of docker-compose.yml because it
+# declares an EXTERNAL network. An external network in the base file makes
+# `docker compose up -d` fail on any host that is not already running our
+# Traefik, with "network traefik_traefik-public declared as external, but could
+# not be found" — and the base file is the install path in the README.
+#
+# What it expects of the host:
+#   * A Traefik instance already running, attached to the Docker network named
+#     below, with a `websecured` entrypoint and a `route53` certificate
+#     resolver. Those three names are ours; change them to match your Traefik.
+#   * ELEFANT_PUBLIC_DOMAIN set in .env — Traefik routes on that Host header.
+#
+# The published `${PORT:-8321}` from the base file stays published. Traefik
+# reaches nginx over the shared Docker network, so on a host where the port
+# should not be reachable from the LAN, bind it to loopback in .env:
+#   PORT=127.0.0.1:8321
+
+services:
+
+  nginx:
+    networks:
+      - traefik-public
+      - internal
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik_traefik-public"
+      - "traefik.http.routers.wiki.entrypoints=websecured"
+      - "traefik.http.routers.wiki.rule=Host(`${ELEFANT_PUBLIC_DOMAIN:?Add ELEFANT_PUBLIC_DOMAIN to .env}`)"
+      - "traefik.http.routers.wiki.tls.certresolver=route53"
+      - "traefik.http.services.wiki.loadbalancer.server.port=8080"
+
+networks:
+  traefik-public:
+    external: true
+    name: traefik_traefik-public

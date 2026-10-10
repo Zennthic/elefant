@@ -1,0 +1,16 @@
+# Keep the two stateful stores off named nodes. `required`, not `preferred`:
+# a database on slow storage is the kind of thing that looks fine for a week
+# and then does not. CHANGE THIS to your own node names, from
+# `kubectl get nodes`.
+- op: add
+  path: /spec/template/spec/affinity
+  value:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: NotIn
+                values:
+                  - slow-node-1
+                  - slow-node-2

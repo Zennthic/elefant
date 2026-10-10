@@ -1,0 +1,85 @@
+/* Shared UI foundation for every Elefant page: the SPA, the Settings and
+ * Platform Admin iframes, and the sign-in pages.
+ *
+ * CANONICAL COPY: editor/static/elefant-ui.css. memory-ui/static/elefant-ui.css
+ * is a mirror written by tools/build_ui_assets.py — edit this one and rerun it.
+ *
+ * Load order on every page:
+ *   theme.js         sets data-theme / data-palette before paint
+ *   appearance.css   the generated colour tokens (no rules of their own)
+ *   elefant-ui.css   this file: foundation rules, all expressed in tokens
+ *   <style>          the page's own layout, which may refine anything here
+ *
+ * The design language: thin neutral structure, one deliberately
+ * strong colour where the colour MEANS something (an accent, a status edge),
+ * a four-step surface ladder (stage → bg → panel → raised), and selection
+ * shown as a tinted fill with an inset ring rather than a heavy border.
+ *
+ * Rules here are low-specificity on purpose (element selectors and single
+ * classes), so a page never has to fight them.
+ */
+
+html { background: var(--bg); }
+
+body {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+::selection { background: var(--selection); color: var(--text); }
+
+a { color: var(--link); text-underline-offset: 3px; }
+a:hover { color: var(--accent-hover); }
+
+code, kbd, pre, samp { font-family: var(--font-mono); }
+
+/* One focus ring everywhere, keyboard-only, in the accent. */
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button:focus-visible, a:focus-visible { outline-offset: 3px; }
+
+input, select, textarea, button { font-family: inherit; }
+input[type='checkbox'], input[type='radio'], input[type='range'], progress {
+  accent-color: var(--accent);
+}
+
+hr { border: 0; border-top: 1px solid var(--line); }
+
+/* Scrollbars in the palette rather than the OS default, which is a bright
+   grey bar on a dark page. Thin: they are structure, not content. */
+* { scrollbar-color: var(--scrollbar) transparent; scrollbar-width: thin; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar);
+  border-radius: 10px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover { background-color: var(--muted); }
+
+::placeholder { color: var(--muted); opacity: 0.75; }
+
+/* The Elefant mark is black line art on transparency: on a dark page it was a
+   black elephant on a near-black card. Inverting it in dark mode draws it in
+   light lines instead, on every page that uses it, without a second asset. */
+html[data-theme='dark'] img[src*="elefant_transparent"],
+[data-theme='dark'] img[src*="elefant_transparent"] { filter: invert(1) opacity(0.92); }
+
+dialog::backdrop { background: var(--overlay); backdrop-filter: blur(3px); }
+
+[hidden] { display: none !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

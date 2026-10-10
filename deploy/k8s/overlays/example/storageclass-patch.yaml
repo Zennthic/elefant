@@ -1,0 +1,6 @@
+# CHANGE THIS to a class from `kubectl get storageclass`. Every Deployment
+# that mounts one of these claims already carries `strategy: Recreate` in the
+# base, which is what ReadWriteOnce requires.
+- op: add
+  path: /spec/storageClassName
+  value: fast-ssd

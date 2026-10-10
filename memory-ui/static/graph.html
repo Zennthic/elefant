@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Theme and palette, applied before paint; see theme.js. The colour tokens
+       come from appearance.css (generated), the foundation rules from
+       elefant-ui.css — both before this page's own <style>, which refines them. -->
+  <script src="/theme.js"></script>
+  <link rel="stylesheet" href="/appearance.css">
+  <link rel="stylesheet" href="/elefant-ui.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Elefant · Memory Graph</title>
+
+  <!-- Same render stack as the in-app Graph tab (see index.html):
+       THREE → three-spritetext → 3d-force-graph, all `defer`, executed in
+       document order. -->
+  <script src="https://unpkg.com/three@0.158.0/build/three.min.js" defer></script>
+  <script src="https://unpkg.com/three-spritetext@1.8.2/dist/three-spritetext.min.js" defer></script>
+  <script src="https://unpkg.com/3d-force-graph@1.74.5/dist/3d-force-graph.min.js" defer></script>
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; }
+    /* DELIBERATE THEME EXCEPTION: the 3D graph stays dark in both modes.
+       It's a visualisation viewport, not a document surface — the node sprites,
+       link colours and depth cues read against a dark field, and inverting it
+       would mean re-tuning the node colours for materially worse legibility.
+
+       It is dark in the chosen PALETTE, though, not in a private scheme of its
+       own: <body data-theme="dark"> is a theme island (see appearance.css), so
+       every token below is the current palette's dark value, and the WebGL
+       colours are read from those same tokens in JS (graphSceneColours). */
+    body {
+      background: var(--stage);
+      color: var(--text);
+      font-family: var(--font-sans);
+    }
+    #graph-canvas { position: absolute; inset: 0; }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      text-align: center;
+      padding: 2rem;
+      background: var(--stage);
+      z-index: 10;
+    }
+    .overlay h1 { font-size: 1.1rem; font-weight: 600; }
+    .overlay p  { font-size: 0.875rem; color: var(--muted); max-width: 34rem; line-height: 1.5; }
+    .overlay code {
+      font-size: 0.8125rem; background: var(--raised);
+      padding: 0.15rem 0.4rem; border-radius: 4px;
+    }
+
+    .hud {
+      position: absolute;
+      left: 0.75rem;
+      bottom: 0.75rem;
+      z-index: 5;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      pointer-events: none;
+      user-select: none;
+    }
+    .hud-status {
+      font-size: 0.6875rem;
+      color: var(--muted);
+      background: color-mix(in srgb, var(--stage) 60%, transparent);
+      padding: 0.2rem 0.45rem;
+      border-radius: 4px;
+      width: fit-content;
+    }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem 0.7rem;
+      font-size: 0.6875rem;
+      color: var(--muted);
+      background: color-mix(in srgb, var(--stage) 60%, transparent);
+      padding: 0.3rem 0.45rem;
+      border-radius: 4px;
+      width: fit-content;
+    }
+    .legend-dot {
+      display: inline-block; width: 8px; height: 8px;
+      border-radius: 50%; margin-right: 0.3rem; vertical-align: -1px;
+    }
+
+    /* 3d-force-graph hover tooltip */
+    .scene-tooltip { background: transparent !important; }
+    .gfx-tooltip {
+      max-width: 280px;
+      background: color-mix(in srgb, var(--panel) 94%, transparent);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      box-shadow: var(--shadow-md);
+      padding: 0.45rem 0.6rem;
+      font-size: 0.75rem;
+      line-height: 1.4;
+      color: var(--text);
+    }
+    .gfx-tip-type { color: var(--muted); font-size: 0.6875rem; margin-bottom: 0.2rem; }
+  </style>
+</head>
+<body data-theme="dark">
+
+  <div id="graph-canvas"></div>
+
+  <div class="hud" id="hud" style="display:none;">
+    <div class="legend">
+      <span><span class="legend-dot" style="background:#6366F1"></span>fact</span>
+      <span><span class="legend-dot" style="background:#06B6D4"></span>event</span>
+      <span><span class="legend-dot" style="background:#22C55E"></span>procedure</span>
+      <span><span class="legend-dot" style="background:#F59E0B"></span>decision</span>
+      <span><span class="legend-dot" style="background:#A855F7"></span>conversation</span>
+      <span><span class="legend-dot" style="background:#64748B"></span>derived</span>
+    </div>
+    <div class="hud-status" id="hud-status">Loading…</div>
+  </div>
+
+  <div class="overlay" id="overlay">
+    <h1 id="overlay-title">Loading memory graph…</h1>
+    <p id="overlay-msg"></p>
+  </div>
+
+<script>
+'use strict';
+
+// ── URL parameters ─────────────────────────────────────────────────────────
+// The token (and optional tuning params) ride in the URL fragment so they
+// never appear in server access logs: /graph#token=...&spin=1.5
+// A plain query string (?token=...) is also accepted for embedding contexts
+// that strip fragments.
+function urlParams() {
+  const out = new URLSearchParams(location.search);
+  const hash = location.hash.replace(/^#/, '');
+  if (hash) {
+    for (const [k, v] of new URLSearchParams(hash)) out.set(k, v);
+  }
+  return out;
+}
+
+const params = urlParams();
+const TOKEN          = params.get('token') || '';
+const MAX_NODES      = params.get('max_nodes') || '2000';
+const MIN_SIMILARITY = params.get('min_similarity') || '0.30';
+const SINCE          = params.get('since') || '';
+const TAGS           = params.get('tags') || '';
+const SPIN           = parseFloat(params.get('spin') ?? '0.5') || 0;  // 0 = off
+const LABEL_TOP_N    = Math.max(0, parseInt(params.get('labels') ?? '11', 10) || 0);
+const HUD            = params.get('hud') !== 'off';
+const POLL_MS        = 15000;
+
+// Memory-type colours: a categorical encoding, literal on purpose and the same
+// as the in-app Graph tab — a fact is the same colour in every palette, or the
+// legend means nothing. (Allow-listed in test_ui_palettes.py.)
+const GRAPH_TYPE_COLOR = {
+  fact:         '#6366F1',
+  event:        '#06B6D4',
+  procedure:    '#22C55E',
+  decision:     '#F59E0B',
+  conversation: '#A855F7',
+  derived:      '#64748B',
+};
+
+// WebGL cannot use var(--…), so hand it the live token values. Read from
+// <body>, which is the dark theme island (see the note in the <style>).
+function themeToken(name) {
+  return getComputedStyle(document.body).getPropertyValue(name).trim();
+}
+function rgbaOf(hex, a) {
+  const h = (hex || '').replace('#', '');
+  const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
+  const n = parseInt(full || '94a3b8', 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+}
+
+let graphInstance = null;
+
+function esc(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function showOverlay(title, msg) {
+  document.getElementById('overlay-title').textContent = title;
+  document.getElementById('overlay-msg').innerHTML = msg || '';
+  document.getElementById('overlay').style.display = 'flex';
+}
+
+function hideOverlay() {
+  document.getElementById('overlay').style.display = 'none';
+}
+
+function setStatus(data) {
+  if (!HUD) return;
+  const shown = data.shown || 0;
+  const total = data.total_memories || 0;
+  const edges = (data.edges || []).length;
+  document.getElementById('hud-status').textContent = total > shown
+    ? `Showing ${shown.toLocaleString()} of ${total.toLocaleString()} memories`
+    : `${shown.toLocaleString()} memor${shown === 1 ? 'y' : 'ies'} · ${edges.toLocaleString()} edge${edges === 1 ? '' : 's'} · live`;
+}
+
+function graphQuery() {
+  const q = new URLSearchParams({ max_nodes: MAX_NODES, min_similarity: MIN_SIMILARITY });
+  if (SINCE) q.set('since', SINCE);
+  if (TAGS)  q.set('tags', TAGS);
+  return q;
+}
+
+async function fetchGraph() {
+  const r = await fetch('/api/memories/graph?' + graphQuery().toString(), {
+    headers: { 'Authorization': 'Bearer ' + TOKEN },
+  });
+  if (r.status === 401 || r.status === 403) {
+    throw Object.assign(new Error('unauthorized'), { unauthorized: true });
+  }
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return r.json();
+}
+
+function toGraphNode(n) {
+  return {
+    id: n.id,
+    snippet: n.snippet || '',
+    type: n.type || 'fact',
+    tags: n.tags || [],
+    colour: GRAPH_TYPE_COLOR[n.type] || '#6366F1',
+    __isTopN: false,
+  };
+}
+
+// Mark the top-N most-connected nodes for label rendering.
+function applyTopNDegree(nodes, links) {
+  const degree = new Map();
+  for (const l of links) {
+    const sId = (l.source && l.source.id) || l.source;
+    const tId = (l.target && l.target.id) || l.target;
+    degree.set(sId, (degree.get(sId) || 0) + 1);
+    degree.set(tId, (degree.get(tId) || 0) + 1);
+  }
+  const ranked = [...nodes].sort(
+    (a, b) => (degree.get(b.id) || 0) - (degree.get(a.id) || 0));
+  const top = new Set(ranked.slice(0, LABEL_TOP_N).map(n => n.id));
+  for (const n of nodes) n.__isTopN = top.has(n.id);
+}
+
+function buildNodeLabelSprite(node) {
+  if (typeof SpriteText === 'undefined' || !node.__isTopN) return null;
+  const text = (node.snippet || '').slice(0, 32).trim().replace(/\s+/g, ' ');
+  if (!text) return null;
+  const sprite = new SpriteText(text);
+  sprite.color           = themeToken('--text');
+  sprite.backgroundColor = rgbaOf(themeToken('--panel'), 0.82);
+  sprite.borderRadius    = 2;
+  sprite.padding         = 2;
+  sprite.fontFace        = 'Inter, sans-serif';
+  sprite.fontWeight      = '300';
+  sprite.textHeight      = 3.2;
+  sprite.position.set(0, 6, 0);
+  return sprite;
+}
+
+function renderGraph(data) {
+  if (typeof ForceGraph3D === 'undefined') {
+    // CDN scripts arrive via `defer`; retry briefly if data won the race.
+    setTimeout(() => renderGraph(data), 100);
+    return;
+  }
+
+  const container = document.getElementById('graph-canvas');
+  const nodes = data.nodes.map(toGraphNode);
+  const links = data.edges.map(e => ({
+    source: e.source, target: e.target, weight: e.weight,
+  }));
+  applyTopNDegree(nodes, links);
+
+  // controlType: 'orbit' is essential — the default trackball controls have
+  // no autoRotate property, so the idle spin would silently do nothing.
+  graphInstance = ForceGraph3D({ controlType: 'orbit' })(container)
+    .backgroundColor(themeToken('--stage'))
+    .warmupTicks(200)
+    .cooldownTicks(60)
+    .graphData({ nodes, links })
+    .nodeId('id')
+    .nodeRelSize(2.4)
+    .nodeVal(() => 1)
+    .nodeColor(n => n.colour)
+    .nodeOpacity(0.92)
+    .nodeResolution(12)
+    .nodeLabel(n =>
+      `<div class="gfx-tooltip">
+         <div class="gfx-tip-type">${esc(n.type)}${n.tags && n.tags.length ? ' · ' + esc(n.tags.join(', ')) : ''}</div>
+         <div class="gfx-tip-snip">${esc(n.snippet)}</div>
+       </div>`)
+    .nodeThreeObject(buildNodeLabelSprite)
+    .nodeThreeObjectExtend(true)
+    .linkColor(l => {
+      // Similarity strength as alpha — WebGL caps line width at 1px on most
+      // platforms, so width-based scaling is mostly invisible.
+      const w = l.weight || 0.3;
+      const a = Math.min(0.85, Math.max(0.08, (w - 0.25) * 1.4));
+      return rgbaOf(themeToken('--muted'), a.toFixed(2));
+    })
+    .linkOpacity(1)
+    .linkWidth(0.6)
+    .linkDirectionalParticles(0)
+    .onEngineStop(() => {
+      if (!graphFramed) {
+        graphInstance.zoomToFit(0, 40);
+        graphFramed = true;
+      }
+    })
+    .width(container.clientWidth)
+    .height(container.clientHeight);
+
+  // warmupTicks runs synchronously when graphData is set, so positions are
+  // usually populated — frame the scene before first paint, with the
+  // onEngineStop fallback above catching the case where warmup didn't run.
+  let graphFramed = false;
+  const anyPositioned = graphInstance.graphData().nodes.some(
+    n => Math.abs(n.x || 0) + Math.abs(n.y || 0) + Math.abs(n.z || 0) > 0.1);
+  if (anyPositioned) {
+    graphInstance.zoomToFit(0, 40);
+    graphFramed = true;
+  }
+
+  const controls = graphInstance.controls();
+  controls.autoRotateSpeed = SPIN;
+  controls.autoRotate      = SPIN > 0;
+
+  // 3d-force-graph stops re-rendering once the simulation cools, which would
+  // freeze autoRotate. Drive a continuous rAF loop for a smooth spin.
+  const renderer = graphInstance.renderer();
+  const scene    = graphInstance.scene();
+  const camera   = graphInstance.camera();
+  function spinFrame() {
+    if (!graphInstance) return;
+    controls.update();
+    renderer.render(scene, camera);
+    requestAnimationFrame(spinFrame);
+  }
+  if (SPIN > 0) requestAnimationFrame(spinFrame);
+}
+
+// Incremental refresh — merge the latest graph into the live instance,
+// preserving node positions and camera/rotation.
+async function syncGraphIncremental() {
+  if (!graphInstance) return;
+  let data;
+  try {
+    data = await fetchGraph();
+  } catch (e) {
+    return;  // poll failures are silent
+  }
+
+  const current = graphInstance.graphData();
+  const currentById  = new Map(current.nodes.map(n => [n.id, n]));
+  const incomingById = new Map(data.nodes.map(n => [n.id, n]));
+
+  let added = 0, removed = 0;
+  const merged = [];
+  for (const incoming of data.nodes) {
+    const existing = currentById.get(incoming.id);
+    if (existing) {
+      existing.tags    = incoming.tags || [];
+      existing.snippet = incoming.snippet || existing.snippet;
+      merged.push(existing);
+    } else {
+      merged.push(toGraphNode(incoming));
+      added++;
+    }
+  }
+  for (const id of currentById.keys()) {
+    if (!incomingById.has(id)) removed++;
+  }
+
+  setStatus(data);
+  if (added === 0 && removed === 0) return;  // no reheat → no camera nudge
+
+  const links = data.edges.map(e => ({
+    source: e.source, target: e.target, weight: e.weight,
+  }));
+  applyTopNDegree(merged, links);
+  graphInstance.graphData({ nodes: merged, links });
+}
+
+async function init() {
+  if (!TOKEN) {
+    showOverlay('Missing access token',
+      'Open this page through a graph URL issued from your Elefant profile, e.g. ' +
+      '<code>/graph#token=…</code>. You can generate one under ' +
+      '<strong>My&nbsp;Settings → API&nbsp;tokens</strong> with the ' +
+      '“Graph visualization” permission.');
+    return;
+  }
+
+  let data;
+  try {
+    data = await fetchGraph();
+  } catch (e) {
+    if (e.unauthorized) {
+      showOverlay('This graph link is invalid or has been revoked',
+        'Generate a new token with the “Graph visualization” permission under ' +
+        '<strong>My&nbsp;Settings → API&nbsp;tokens</strong>.');
+    } else {
+      showOverlay('Failed to load the memory graph', esc(e.message));
+    }
+    return;
+  }
+
+  hideOverlay();
+  if (HUD) document.getElementById('hud').style.display = '';
+  setStatus(data);
+
+  if (!data.shown) {
+    showOverlay('No memories to graph yet', 'Capture a few, then come back.');
+    return;
+  }
+
+  renderGraph(data);
+  setInterval(syncGraphIncremental, POLL_MS);
+}
+
+window.addEventListener('resize', () => {
+  if (graphInstance) {
+    graphInstance.width(window.innerWidth).height(window.innerHeight);
+  }
+});
+
+init();
+</script>
+</body>
+</html>

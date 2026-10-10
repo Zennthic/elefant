@@ -1,0 +1,495 @@
+# ── Elefant – Docker Compose Stack ─────────────────────────────────────────────
+# Deploy:
+#   1. Copy .env.example to ~/elefant/.env and fill in required values
+#   2. docker compose up -d --pull always
+#
+# This file on its own is a complete, self-contained stack: it publishes nginx
+# on ${PORT:-8321} and assumes no reverse proxy, no external network and no
+# TLS. That is deliberate — it is the install path in the README, and it has to
+# work on a host that runs nothing else.
+#
+# To put Traefik in front of it, add the override:
+#   docker compose -f docker-compose.yml -f docker-compose.traefik.yml up -d
+#
+# Required values in .env (stack will fail fast with a clear error if missing):
+#   ELEFANT_SESSION_SECRET    – openssl rand -hex 32
+#   ELEFANT_PUBLIC_DOMAIN     – e.g. wiki.example.com
+#   ELEFANT_INTERNAL_SERVICE_TOKEN
+#                             – openssl rand -hex 32; authenticates peer
+#                               Elefant containers when they talk to each
+#                               other (compactor → embedder, editor →
+#                               memory-api restore/purge, etc.). Without
+#                               it those internal flows fail closed.
+#   POSTGRES_PASSWORD         – any high-entropy string; the bundled
+#                               Postgres holds every tenant's hot-tier
+#                               captures + events + audit revisions, so
+#                               its DBA credential should not default
+#                               to a guessable value.
+#   ELEFANT_S3_ACCESS_KEY     – non-default S3 (or bundled MinIO) creds
+#   ELEFANT_S3_SECRET_KEY       — wiki content lives in these buckets;
+#                                 leaving the defaults exposes both the
+#                                 wiki and (in CE) the MinIO admin UI.
+#
+# Deployment mode (optional – defaults to one organisation):
+#   ELEFANT_MODE             – single-org | multi-org  (default: single-org)
+
+services:
+
+  # ── Reverse Proxy ──────────────────────────────────────────────────────────
+  nginx:
+    image: ghcr.io/zennthic/elefant/nginx:${ELEFANT_TAG:-latest}
+    build: ./nginx
+    # The front door, published on the host. Nothing in this file assumes a
+    # reverse proxy in front of it: `docker compose up -d` on a fresh host
+    # serves the whole stack on this port over plain http, which is what the
+    # README's quick start does. Put TLS in front of it with an override — ours
+    # is docker-compose.traefik.yml.
+    ports:
+      # 8080 inside: nginx runs unprivileged and cannot bind a port below 1024.
+      - "${PORT:-8321}:8080"
+    depends_on:
+      - editor
+      - embedder
+      - memory-ui
+      - mcp
+    networks:
+      - internal
+    restart: unless-stopped
+    healthcheck:
+      # Through the proxy, not just "is nginx listening": /login is proxied to
+      # the editor, so this fails when nginx is up but cannot reach its
+      # upstream (a wrong upstream port, a stale upstream IP) as well as when
+      # nginx is not listening on 8080 at all. Before this, a misrouted nginx
+      # read "Up" in `docker compose ps` for the whole of the 2026-09-29 prod
+      # incident (card #300).
+      #
+      # busybox wget: the alpine image has no curl. It follows the first-run
+      # redirect to /setup, which the editor also serves. 127.0.0.1, not
+      # localhost — see the editor healthcheck note.
+      #
+      # Behind Traefik (docker-compose.traefik.yml) an nginx that is not
+      # healthy is taken out of the routing, so while the editor is down the
+      # site answers Traefik's 404 rather than nginx's 502.
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "-T", "4", "http://127.0.0.1:8080/login"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+
+  # ── Volume ownership (one-shot) ────────────────────────────────────────────
+  # Every Elefant image runs as UID/GID 10001, but volumes created before that
+  # change are owned by root, and the services would fail to write to them on
+  # the first boot of the upgrade. This runs once per `up`, as root, chowns
+  # only what is not already 10001 (so after the first run it is a quick walk
+  # that changes nothing), and exits; editor and embedder wait for it to
+  # succeed. It reuses the editor image, so it adds nothing to pull. It has no
+  # network: it touches the volumes and nothing else.
+  volume-perms:
+    image: ghcr.io/zennthic/elefant/editor:${ELEFANT_TAG:-latest}
+    build: ./editor
+    user: "0:0"
+    network_mode: none
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        for d in /docs /data /backend_sync /git-sources /hf-cache; do
+          find "$$d" \( ! -user 10001 -o ! -group 10001 \) -exec chown -h 10001:10001 {} +
+        done
+        echo "volume-perms: volumes owned by 10001:10001"
+    volumes:
+      - docs:/docs
+      - editor_data:/data
+      - backend_sync:/backend_sync
+      - git_sources:/git-sources
+      - hf_cache:/hf-cache
+    restart: "no"
+
+  # ── WYSIWYG Editor ─────────────────────────────────────────────────────────
+  editor:
+    image: ghcr.io/zennthic/elefant/editor:${ELEFANT_TAG:-latest}
+    build: ./editor
+    volumes:
+      - docs:/docs
+      - editor_data:/data
+      - backend_sync:/backend_sync
+    environment:
+      DOCS_DIR:               /docs
+      DB_PATH:                /data/config.db
+      CRYPTO_KEY_PATH:        /data/crypto.key
+      BACKEND_READINESS_FILE: /backend_sync/ready
+      EDITOR_EXTERNAL_URL:    "https://${ELEFANT_PUBLIC_DOMAIN:?Add ELEFANT_PUBLIC_DOMAIN to .env}/editor"
+      SESSION_SECRET:         "${ELEFANT_SESSION_SECRET:?Add ELEFANT_SESSION_SECRET to .env (run: openssl rand -hex 32)}"
+      INTERNAL_SERVICE_TOKEN: "${ELEFANT_INTERNAL_SERVICE_TOKEN:?Add ELEFANT_INTERNAL_SERVICE_TOKEN to .env (run: openssl rand -hex 32)}"
+      APP_NAME:               "${ELEFANT_APP_NAME:-Elefant}"
+      ELEFANT_MODE:           "${ELEFANT_MODE:-}"
+      # Deprecated spelling of ELEFANT_MODE, passed through so an older .env
+      # keeps working: ELEFANT_TIER=saas means multi-org, anything else is
+      # ignored with a line in the log.
+      ELEFANT_TIER:           "${ELEFANT_TIER:-}"
+      # Optional: set to migrate config DB from SQLite → PostgreSQL.
+      # Unset = keep SQLite (backward-compatible for bare installs).
+      POSTGRES_EDITOR_DSN:    "${POSTGRES_EDITOR_DSN:-}"
+      # Multi-org bootstrap: on first boot a Platform Admin is created from
+      # these env vars (only used when ELEFANT_MODE=multi-org).
+      PLATFORM_ADMIN_USERNAME: "${PLATFORM_ADMIN_USERNAME:-}"
+      PLATFORM_ADMIN_PASSWORD: "${PLATFORM_ADMIN_PASSWORD:-}"
+      # S3-compatible object storage for per-org wiki content (multi-org data
+      # boundaries). Defaults point at the bundled MinIO service. Set
+      # ELEFANT_S3_ENDPOINT_URL (and the access/secret keys) in .env to
+      # point at managed S3 / R2 / B2 instead.
+      ELEFANT_S3_ENDPOINT_URL: "${ELEFANT_S3_ENDPOINT_URL:-http://minio:9000}"
+      ELEFANT_S3_REGION:       "${ELEFANT_S3_REGION:-us-east-1}"
+      ELEFANT_S3_ACCESS_KEY:   "${ELEFANT_S3_ACCESS_KEY:?Add ELEFANT_S3_ACCESS_KEY to .env (the bundled-MinIO default 'elefant' is no longer accepted)}"
+      ELEFANT_S3_SECRET_KEY:   "${ELEFANT_S3_SECRET_KEY:?Add ELEFANT_S3_SECRET_KEY to .env (use openssl rand -hex 32; the bundled-MinIO default is no longer accepted)}"
+      ELEFANT_S3_BUCKET_PREFIX: "${ELEFANT_S3_BUCKET_PREFIX-}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      volume-perms:
+        condition: service_completed_successfully
+    networks:
+      - internal
+    restart: unless-stopped
+    healthcheck:
+      # python:3.11-slim ships no wget/curl — use Python's urllib so the check
+      # reflects the app's real /health endpoint, not a missing binary.
+      # Use 127.0.0.1, NOT localhost: on IPv6-enabled hosts `localhost` resolves
+      # to ::1 first, but uvicorn binds 0.0.0.0 (IPv4 only), so the probe stalls
+      # on the ::1 attempt and the 5s Docker timeout kills it before it falls
+      # back to IPv4 — a permanent false "unhealthy" (seen on the prod host,
+      # while the identical image stayed healthy on an IPv4-only host).
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=4)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      # Multi-org deployments run a burst of per-org backups at startup;
+      # give the app room to settle before failures count against it.
+      start_period: 40s
+
+  # ── Embedder / Search API ──────────────────────────────────────────────────
+  embedder:
+    # Default is the FULL image (bundled on-box embedding backend). Deployments
+    # that use an external/custom embedding API never load torch, so they can
+    # pull the torch-free slim image instead — ~2GB smaller, far quicker layer
+    # updates — by setting EMBEDDER_IMAGE=…/embedder:slim in .env (and
+    # EMBEDDING_PROVIDER=openai|custom so the env fallback never asks for the
+    # local backend).
+    image: ${EMBEDDER_IMAGE:-ghcr.io/zennthic/elefant/embedder:${ELEFANT_TAG:-latest}}
+    build:
+      context: ./embedder
+      args:
+        # Local `docker compose build` only: set EMBEDDER_INCLUDE_LOCAL=false to
+        # build the slim image yourself. Deploys pull a prebuilt tag (via
+        # EMBEDDER_IMAGE) with `--no-build`, so this is ignored there.
+        INCLUDE_LOCAL_EMBEDDINGS: "${EMBEDDER_INCLUDE_LOCAL:-true}"
+    volumes:
+      - docs:/docs
+      - backend_sync:/backend_sync
+      - git_sources:/git-sources
+      - hf_cache:/home/elefant/.cache/huggingface
+    environment:
+      DOCS_DIR:               /docs
+      QDRANT_HOST:            qdrant
+      QDRANT_PORT:            "6333"
+      COLLECTION_NAME:        knowledge_base
+      BACKEND_READINESS_FILE: /backend_sync/ready
+      BACKEND_INIT_TIMEOUT:   "300"
+      MEMORY_API_URL:         http://memory-api:8002
+      INTERNAL_SERVICE_TOKEN: "${ELEFANT_INTERNAL_SERVICE_TOKEN:?Add ELEFANT_INTERNAL_SERVICE_TOKEN to .env (run: openssl rand -hex 32)}"
+      EMBEDDING_PROVIDER:     local
+      EMBEDDING_MODEL:        "${EMBEDDING_MODEL:-multi-qa-distilbert-cos-v1}"
+      GIT_SOURCES_DIR:        /git-sources
+      # Git sources are lexical-indexed in Postgres (memory-api) and searched
+      # via the MCP git_search/git_read tools. Dense vector embedding of repo
+      # files is opt-in — set to "true" to also embed code chunks into Qdrant.
+      GIT_SOURCE_EMBED:       "${GIT_SOURCE_EMBED:-false}"
+      HF_HOME:                /home/elefant/.cache/huggingface
+      # The Phase-2 editor always writes per-org content under /docs/<slug>/,
+      # so the indexer needs to route by that path layout. Turning this on
+      # is what splits Qdrant collections per tenant (knowledge_base for the
+      # default org, <slug>_wiki for everyone else).
+      MULTI_TENANT_DOCS:      "${MULTI_TENANT_DOCS:-true}"
+      # S3 storage config — the embedder uses it to count authoritative
+      # docs per org (Phase 2.5) and will read full content from it once
+      # Phase 3 cuts the embedder off the /docs filesystem entirely.
+      ELEFANT_S3_ENDPOINT_URL: "${ELEFANT_S3_ENDPOINT_URL:-http://minio:9000}"
+      ELEFANT_S3_REGION:       "${ELEFANT_S3_REGION:-us-east-1}"
+      ELEFANT_S3_ACCESS_KEY:   "${ELEFANT_S3_ACCESS_KEY:?Add ELEFANT_S3_ACCESS_KEY to .env (the bundled-MinIO default 'elefant' is no longer accepted)}"
+      ELEFANT_S3_SECRET_KEY:   "${ELEFANT_S3_SECRET_KEY:?Add ELEFANT_S3_SECRET_KEY to .env (use openssl rand -hex 32; the bundled-MinIO default is no longer accepted)}"
+      ELEFANT_S3_BUCKET_PREFIX: "${ELEFANT_S3_BUCKET_PREFIX-}"
+    depends_on:
+      editor:
+        condition: service_started
+      qdrant:
+        condition: service_started
+      volume-perms:
+        condition: service_completed_successfully
+    networks:
+      - internal
+    restart: unless-stopped
+    mem_limit: 1500m
+    healthcheck:
+      # python:3.11-slim ships no wget/curl — use Python's urllib (see editor).
+      # 127.0.0.1 not localhost — see the editor healthcheck note (IPv6 ::1
+      # first-resolution makes localhost probes hang on IPv6-enabled hosts).
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=4)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 180s
+
+  # ── Vector Database ─────────────────────────────────────────────────────────
+  qdrant:
+    # Pinned rather than `latest`: the deploy runs `--pull always`, so an
+    # unpinned tag lets an upstream release move the vector store under us
+    # between two deploys, and lets two Stages that pull at different times
+    # run different Qdrant versions. Bump this deliberately.
+    image: qdrant/qdrant:v1.19.1
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - internal
+    restart: unless-stopped
+    # No healthcheck: the qdrant image ships no wget/curl/HTTP client, so an
+    # exec-based check fails on a missing binary (a false 'unhealthy'). Nothing
+    # gates on qdrant being healthy (dependents use the default service_started
+    # condition) and the app services retry their qdrant connections, so a
+    # check here would add only noise.
+
+  # ── Object Storage (S3-compatible, per-org bucket model) ──────────────────
+  # Default bundled MinIO for self-hosted installs. Used by the multi-org
+  # data-boundaries work — orgs flagged storage_backend='s3' get their wiki
+  # content stored in a per-org bucket here instead of the shared /docs
+  # volume. To point Elefant at managed S3 / R2 / B2 / Wasabi instead, set
+  # ELEFANT_S3_ENDPOINT_URL in .env and you can leave this service stopped
+  # (or remove it from the stack).
+  minio:
+    # MinIO the project no longer publishes a public image. Docker Hub's
+    # minio/minio went first (a deploy failed on `pull access denied`, and this
+    # moved to quay.io); on 2026-09-25 quay.io/minio/minio closed to anonymous
+    # pulls too, and a deploy failed on `unauthorized` for the same release it
+    # had pulled fine the day before.
+    #
+    # pgsty/minio is the community build of the same server (github.com/
+    # pgsty/minio): the same UBI-micro image layout, entrypoint, MINIO_ROOT_*
+    # variables, bundled curl for the healthcheck below, and the same on-disk
+    # format, so an existing minio_data volume carries straight over.
+    #
+    # Pinned by release tag AND digest. An unpinned third-party tag means
+    # somebody else's registry decision can stop a deploy with no commit of
+    # ours involved, and the failure lands on whoever happens to push next;
+    # the digest also means a re-pushed tag cannot change what runs here.
+    # deploy/k8s/base/minio.yaml pins the same image.
+    image: docker.io/pgsty/minio:RELEASE.2026-08-04T00-00-00Z@sha256:b6bfe7239bfc83fb90d31612d9704d86039dd714f7904b3f1ad68f211e602372
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    environment:
+      MINIO_ROOT_USER:     "${ELEFANT_S3_ACCESS_KEY:?Add ELEFANT_S3_ACCESS_KEY to .env}"
+      MINIO_ROOT_PASSWORD: "${ELEFANT_S3_SECRET_KEY:?Add ELEFANT_S3_SECRET_KEY to .env}"
+    networks:
+      - internal
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9000/minio/health/live"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # ── PostgreSQL ─────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB:       memory
+      POSTGRES_USER:     memory
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?Add POSTGRES_PASSWORD to .env (use a high-entropy string)}"
+    networks:
+      - internal
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "memory"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Memory API ─────────────────────────────────────────────────────────────
+  memory-api:
+    image: ghcr.io/zennthic/elefant/memory-api:${ELEFANT_TAG:-latest}
+    build: ./memory-api
+    environment:
+      QDRANT_HOST:            qdrant
+      EMBEDDER_URL:           http://embedder:8001
+      POSTGRES_HOST:          postgres
+      POSTGRES_DB:            memory
+      POSTGRES_USER:          memory
+      POSTGRES_PASSWORD:      "${POSTGRES_PASSWORD:?Add POSTGRES_PASSWORD to .env (use a high-entropy string)}"
+      INTERNAL_SERVICE_TOKEN: "${ELEFANT_INTERNAL_SERVICE_TOKEN:?Add ELEFANT_INTERNAL_SERVICE_TOKEN to .env (run: openssl rand -hex 32)}"
+      # How long a card's evaluation lock may sit before a new acquire breaks
+      # it, on the assumption the run holding it died. Passed through rather
+      # than left to the code default so an operator can raise it without a
+      # rebuild: a deployment whose reviewer runs slower checks than ours needs
+      # a longer ceiling, and the cost of guessing low is a card evaluated twice.
+      CARD_EVAL_LOCK_STALE_SECONDS: "${ELEFANT_CARD_EVAL_LOCK_STALE_SECONDS:-1800}"
+    depends_on:
+      - qdrant
+      - postgres
+      - embedder
+    networks:
+      - internal
+    restart: unless-stopped
+    healthcheck:
+      # Liveness only. /health is a dependency roll-up that answers 200 either
+      # way and reports Qdrant/Postgres/embedder in the body, so this passes
+      # whenever the process serves HTTP — which is the question to ask here:
+      # a slow Postgres must not mark memory-api itself unhealthy. The roll-up
+      # can take up to the embedder's 5s timeout, hence the longer timeout.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8002/health', timeout=10)"]
+      interval: 15s
+      timeout: 12s
+      retries: 5
+      start_period: 30s
+
+  # ── Memory Manager UI ──────────────────────────────────────────────────────
+  memory-ui:
+    image: ghcr.io/zennthic/elefant/memory-ui:${ELEFANT_TAG:-latest}
+    build: ./memory-ui
+    networks:
+      - internal
+    restart: unless-stopped
+
+  # ── MCP Server ─────────────────────────────────────────────────────────────
+  mcp:
+    image: ghcr.io/zennthic/elefant/mcp:${ELEFANT_TAG:-latest}
+    build: ./mcp
+    ports:
+      - "${MCP_PORT:-8322}:8003"
+    environment:
+      EMBEDDER_URL:           http://embedder:8001
+      MEMORY_API_URL:         http://memory-api:8002
+      EDITOR_URL:             http://editor:8080
+      EXTERNAL_MCP_URL:       "https://${ELEFANT_PUBLIC_DOMAIN:?Add ELEFANT_PUBLIC_DOMAIN to .env}/mcp"
+      EXTERNAL_EDITOR_URL:    "https://${ELEFANT_PUBLIC_DOMAIN:?Add ELEFANT_PUBLIC_DOMAIN to .env}/editor"
+      INTERNAL_SERVICE_TOKEN: "${ELEFANT_INTERNAL_SERVICE_TOKEN:?Add ELEFANT_INTERNAL_SERVICE_TOKEN to .env (run: openssl rand -hex 32)}"
+      # Per-token MCP rate limiting. OFF by default (0 = unlimited) — see the
+      # note in mcp/main.py for why, and for what it does and does not buy.
+      # Set both, or either, to switch it on for a deployment that wants a
+      # ceiling. Counts every HTTP request to /mcp, not just tool calls, so
+      # a day's budget goes further than the number looks.
+      ELEFANT_MCP_RATE_LIMIT_RPM: "${ELEFANT_MCP_RATE_LIMIT_RPM:-0}"
+      ELEFANT_MCP_RATE_LIMIT_RPD: "${ELEFANT_MCP_RATE_LIMIT_RPD:-0}"
+      # The diagram validator (always on, below) checks every diagram write.
+      # The optional renderer (the `diagrams` profile) draws images and
+      # validates too. With neither, writes are refused unless
+      # DIAGRAM_ALLOW_UNVALIDATED is true. Empty turns a lookup off.
+      DIAGRAM_VALIDATOR_URL:  http://diagram-validator:8005
+      DIAGRAM_RENDERER_URL:   http://diagram-renderer:8004
+      DIAGRAM_ALLOW_UNVALIDATED: "${DIAGRAM_ALLOW_UNVALIDATED:-false}"
+    depends_on:
+      - embedder
+      - memory-api
+      - editor
+      - diagram-validator
+    networks:
+      - internal
+      - diagrams
+    restart: unless-stopped
+    healthcheck:
+      # /health answers ahead of the bearer check and does no I/O, so this is
+      # "the server is up and serving HTTP", not a readiness roll-up. Python
+      # urllib because the image has no wget; 127.0.0.1 not localhost — see
+      # the editor healthcheck note.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8003/health', timeout=4)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ── Diagram validator ─────────────────────────────────────────────────────
+  # Parses Mermaid for the MCP diagram tools, so a broken diagram is refused
+  # with its line number instead of saved. Plain Node, no browser: about 80 MB
+  # of image on top of node:22-slim and under 100 MB of memory. Locked down
+  # like the renderer below; its notes are at the top of
+  # diagram-validator/server.mjs.
+  diagram-validator:
+    image: ghcr.io/zennthic/elefant/diagram-validator:${ELEFANT_TAG:-latest}
+    build: ./diagram-validator
+    environment:
+      INTERNAL_SERVICE_TOKEN: "${ELEFANT_INTERNAL_SERVICE_TOKEN:?Add ELEFANT_INTERNAL_SERVICE_TOKEN to .env (run: openssl rand -hex 32)}"
+    networks:
+      - diagrams
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - "no-new-privileges:true"
+    mem_limit: 256m
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8005/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ── Diagram renderer (OPTIONAL: `--profile diagrams`) ──────────────────────
+  # Renders Mermaid diagrams to images for the MCP diagram tools, in a
+  # headless Chromium. Off by default because Chromium is a large image; turn
+  # it on with `docker compose --profile diagrams up -d`, or by putting
+  # COMPOSE_PROFILES=diagrams in .env. Diagram source is untrusted, so the
+  # container is locked down: a network with no route out (`diagrams` is
+  # internal), a read-only root filesystem, no capabilities. The service's own
+  # notes on containment are at the top of diagram-renderer/server.mjs.
+  diagram-renderer:
+    image: ghcr.io/zennthic/elefant/diagram-renderer:${ELEFANT_TAG:-latest}
+    build: ./diagram-renderer
+    profiles: ["diagrams"]
+    environment:
+      INTERNAL_SERVICE_TOKEN: "${ELEFANT_INTERNAL_SERVICE_TOKEN:?Add ELEFANT_INTERNAL_SERVICE_TOKEN to .env (run: openssl rand -hex 32)}"
+      # Chromium wants a writable home for its profile; the root filesystem
+      # is read-only, so it gets the tmpfs.
+      HOME: /tmp
+    networks:
+      - diagrams
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt:
+      - "no-new-privileges:true"
+    mem_limit: 1g
+    restart: unless-stopped
+    healthcheck:
+      # /health does no browser work. Node's own fetch: the image has no curl.
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8004/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+volumes:
+  docs:
+  editor_data:
+  backend_sync:
+  git_sources:
+  qdrant_data:
+  postgres_data:
+  hf_cache:
+  minio_data:
+
+networks:
+  # One network, created by compose. An `external: true` network here would
+  # stop `docker compose up -d` dead on any host that does not already run our
+  # Traefik ("network ... declared as external, but could not be found"), and
+  # this file is the install path we hand to strangers. The Traefik network is
+  # declared in docker-compose.traefik.yml instead.
+  internal:
+    driver: bridge
+  # The MCP server and the diagram sidecars only. `internal: true` gives it no
+  # route off the host, so diagram source has nowhere to send anything.
+  diagrams:
+    driver: bridge
+    internal: true

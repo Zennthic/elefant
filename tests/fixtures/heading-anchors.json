@@ -1,0 +1,45 @@
+{
+  "_about": "Heading anchor cases. editor/wiki_pages.py, mcp/main.py and memory-ui's reader each derive anchors from headings, and each test suite checks its implementation against this one file so the three cannot drift. `headings` are single headings in isolation: raw markdown text after the #s, and the anchor it gets. `pages` are whole pages: every heading's anchor in document order, which pins down the -1/-2 counter for repeats.",
+  "headings": [
+    ["Rollback", "rollback"],
+    ["Rollback Steps", "rollback-steps"],
+    ["  Leading and trailing  ", "leading-and-trailing"],
+    ["Step 1: Prepare the DB", "step-1-prepare-the-db"],
+    ["What's new?", "whats-new"],
+    ["Q&A", "qa"],
+    ["Q &amp; A", "q--a"],
+    ["C++ / C# notes", "c--c-notes"],
+    ["snake_case_name", "snake_case_name"],
+    ["_emphasised_ word", "emphasised-word"],
+    ["__strong__ word", "strong-word"],
+    ["**Bold** and *italic*", "bold-and-italic"],
+    ["~~struck~~ text", "struck-text"],
+    ["The `wiki_edit` tool", "the-wiki_edit-tool"],
+    ["Use `**not bold**` here", "use-not-bold-here"],
+    ["See [the docs](https://example.com/docs) now", "see-the-docs-now"],
+    ["Logo ![alt text](logo.png) here", "logo--here"],
+    ["<span>Inline</span> HTML", "inline-html"],
+    ["Escaped \\_underscores\\_", "escaped-_underscores_"],
+    ["Café résumé", "café-résumé"],
+    ["日本語の見出し", "日本語の見出し"],
+    ["Emoji 🚀 launch", "emoji--launch"],
+    ["Already-hyphenated -- twice", "already-hyphenated----twice"],
+    ["Trailing hashes ##", "trailing-hashes"],
+    ["1. Numbered", "1-numbered"],
+    ["???", "section"]
+  ],
+  "pages": [
+    {
+      "markdown": "# Runbook\n\n## Steps\n\ntext\n\n## Steps\n\nmore\n\n### Steps\n\n## Steps 1\n\n## Steps\n",
+      "anchors": ["runbook", "steps", "steps-1", "steps-2", "steps-1-1", "steps-3"]
+    },
+    {
+      "markdown": "---\ntitle: Page\n# not a heading\n---\n\n# Title\n\n```bash\n# not a heading either\n```\n\n## Usage\n\n~~~\n## still code\n~~~\n\n## Usage\n",
+      "anchors": ["title", "usage", "usage-1"]
+    },
+    {
+      "markdown": "## !!!\n\n## ???\n\n## Section\n",
+      "anchors": ["section", "section-1", "section-2"]
+    }
+  ]
+}
