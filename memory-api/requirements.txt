@@ -4,9 +4,9 @@
 fastapi==0.142.2
 # Pinned directly, and kept in step with editor/requirements.txt (see there).
 starlette==1.7.0
-uvicorn[standard]==0.29.0
-qdrant-client==1.9.2
+uvicorn[standard]==0.54.0
+qdrant-client==1.19.1
 psycopg2-binary==2.9.13
-sqlalchemy==2.0.54
-httpx==0.27.2
+sqlalchemy==2.1.4
+httpx==0.28.1
 python-dateutil==2.9.0.post0
