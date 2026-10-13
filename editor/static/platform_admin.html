@@ -1,0 +1,1708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Theme and palette, applied before paint; see theme.js. The colour tokens
+       come from appearance.css (generated), the foundation rules from
+       elefant-ui.css — both before this page's own <style>, which refines them. -->
+  <script src="/theme.js"></script>
+  <link rel="stylesheet" href="/appearance.css">
+  <link rel="stylesheet" href="/elefant-ui.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="elefant_transparent.png" type="image/png">
+  <title>Platform admin — <!-- APP_NAME --></title>
+  <style>
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family: var(--font-sans); background:var(--bg); color:var(--text); padding:2rem 1rem; }
+    .container { max-width:1100px; margin:0 auto; display:flex; flex-direction:column; gap:1.5rem; }
+    header { display:flex; justify-content:space-between; align-items:center; }
+    header h1 { font-size:1.4rem; font-weight:600; }
+    header h1 span { color:var(--accent2); font-size:0.7em; margin-left:0.5em; vertical-align:middle;
+                     padding:0.125rem 0.5rem; background:var(--accent2bg); border-radius:999px;
+                     font-weight:700; text-transform:uppercase; letter-spacing:0.05em; }
+    header a { color:var(--muted); font-size:0.875rem; text-decoration:none; }
+    header a:hover { color:var(--text); }
+    .card { background:var(--panel); border:1px solid var(--line); border-radius: var(--radius); padding:1.5rem; box-shadow: var(--shadow); }
+    .card h2 { font-size:19px; letter-spacing:-0.02em;
+               color:var(--text); margin-bottom:0.875rem; font-weight:600; }
+    table { width:100%; font-size:0.8125rem; border-collapse:collapse; }
+    th, td { padding:0.625rem 0.5rem; text-align:left; border-bottom:1px solid var(--line); }
+    th { color:var(--muted); font-weight:600; font-size:10.5px; text-transform:uppercase; letter-spacing:0.06em; }
+    .btn { padding:0.4rem 0.9rem; background:var(--accent); color:var(--on-accent); border:none;
+           border-radius:var(--radius-sm); font-size:0.8125rem; font-weight: 550; cursor:pointer; }
+    .btn:hover { background:var(--accent-hover); }
+    .btn.secondary { background:var(--accentbg); color:var(--text); }
+    .btn.danger { background:var(--danger); }
+    input, select { padding:0.4rem 0.6rem; border: 1px solid var(--line);
+                    border-radius:var(--radius-sm); background:var(--field); color:var(--text);
+                    font-size:0.8125rem; outline:none; }
+    input:focus, select:focus { border-color:var(--accent); box-shadow: 0 0 0 3px var(--accentbg); }
+    .badge { display:inline-block; padding:0.125rem 0.5rem; border-radius:999px;
+             font-size:0.7rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; }
+    .badge.ok    { background:var(--successbg); color:var(--success); }
+    .badge.warn  { background:var(--dangerbg); color:var(--danger); }
+    .badge.muted { background:var(--accentbg); color:var(--muted); }
+    .form-row { display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center; margin-bottom:0.75rem; }
+    .form-row input, .form-row select { flex:1 1 160px; }
+    .invite-out { font-family:ui-monospace,monospace; font-size:0.8125rem;
+                  padding:0.5rem 0.75rem; background:var(--accentbg);
+                  border:1px solid var(--accentline); border-radius:var(--radius-xs);
+                  margin-top:0.5rem; word-break:break-all; }
+    /* Domain modal */
+    .modal-backdrop { position:fixed; inset:0; background:var(--overlay); z-index:50;
+                      display:none; align-items:flex-start; justify-content:center;
+                      padding:3rem 1rem; overflow-y:auto; }
+    .modal-backdrop.open { display:flex; }
+    .modal { background:var(--panel); border:1px solid var(--line); border-radius:var(--radius-sm);
+             width:100%; max-width:680px; padding:1.5rem; }
+    .modal h3 { font-size:1.05rem; font-weight:600; margin-bottom:0.5rem; }
+    .modal h3 .close { float:right; cursor:pointer; color:var(--muted); font-size:1.25rem;
+                       line-height:1; padding:0 0.5rem; }
+    .modal h3 .close:hover { color:var(--text); }
+    .domain-card { border:1px solid var(--line); border-radius:var(--radius-sm); padding:0.875rem;
+                   margin-bottom:0.75rem; background:var(--raised); }
+    .domain-card .row { display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; }
+    .cname-block { margin-top:0.625rem; padding:0.625rem 0.75rem;
+                   background:var(--accentbg); border:1px solid var(--accentline);
+                   border-radius:var(--radius-xs); font-size:0.8125rem; }
+    .cname-block table { font-family:ui-monospace,monospace; font-size:0.75rem; margin-top:0.4rem; }
+    .cname-block td { border:none; padding:0.15rem 0.6rem 0.15rem 0; }
+    .domain-pill-button { background:none; border:0; padding:0; cursor:pointer;
+                          font:inherit; color:inherit; }
+    .domain-pill-button:hover .badge { filter:brightness(1.15); text-decoration:underline; }
+    /* Backup UI */
+    .backup-row { display:flex; align-items:center; gap:0.5rem; padding:0.5rem 0;
+                  border-bottom:1px solid var(--line); flex-wrap:wrap; }
+    .backup-row:last-child { border-bottom:none; }
+    .backup-meta { flex:1; min-width:0; }
+    .backup-meta strong { display:block; font-size:0.8125rem; font-family:ui-monospace,monospace; }
+    .backup-meta span   { font-size:0.75rem; color:var(--muted); }
+    .badge.s3 { background:var(--accentbg); color:var(--accent); }
+    .restore-drop { border:2px dashed var(--accentline); border-radius:var(--radius-sm);
+                    padding:1rem; text-align:center; color:var(--muted); font-size:0.8125rem;
+                    cursor:pointer; transition:border-color 0.15s; }
+    .restore-drop.drag-over { border-color:var(--accent); color:var(--text); }
+    .s3-form input { width:100%; margin-bottom:0.5rem; }
+    /* Restore review + progress */
+    .restore-facts { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+                     gap:.5rem; margin:.5rem 0 1rem; }
+    .restore-fact { background:var(--raised); border:1px solid var(--line);
+                    border-radius:var(--radius-sm); padding:.5rem .625rem; }
+    .restore-fact dt { font-size:.7rem; text-transform:uppercase; letter-spacing:.05em;
+                       color:var(--muted); margin-bottom:.15rem; }
+    .restore-fact dd { font-size:.9rem; font-weight:600; }
+    .restore-sub { font-size:.8125rem; color:var(--muted); }
+    .restore-effects { margin:.25rem 0 0 1.1rem; font-size:.8125rem; color:var(--muted);
+                       display:flex; flex-direction:column; gap:.35rem; }
+    .restore-effects li strong { color:var(--danger); }
+    .restore-warn { background:var(--warningbg); color:var(--warning);
+                    border:1px solid var(--warningline); padding:.6rem .75rem;
+                    border-radius:var(--radius-sm); font-size:.8125rem; margin-bottom:.75rem; }
+    .restore-heading { font-size:.8rem; font-weight:700; text-transform:uppercase;
+                       letter-spacing:.05em; color:var(--muted); margin:1rem 0 .4rem; }
+    .restore-area { border:1px solid var(--line); border-radius:var(--radius-sm); padding:.55rem .7rem;
+                    margin-bottom:.4rem; background:var(--raised); }
+    .restore-area.off { opacity:.5; }
+    .restore-area-head { display:flex; gap:.55rem; align-items:flex-start;
+                         font-size:.8125rem; cursor:pointer; }
+    .restore-area-head input { margin-top:.15rem; }
+    .restore-area-head .restore-sub { display:block; margin-top:.1rem; }
+    .restore-mode-row { display:flex; gap:.35rem; align-items:center;
+                        margin:.45rem 0 0 1.45rem; flex-wrap:wrap; }
+    .restore-mode { padding:.18rem .6rem; font-size:.75rem; font-weight:600;
+                    border-radius:999px; cursor:pointer; color:var(--muted);
+                    background:transparent; border:1px solid var(--line); }
+    .restore-mode:hover:not(:disabled) { color:var(--text); }
+    .restore-mode.on { background:var(--accentbg); border-color:var(--accent);
+                       color:var(--text); }
+    .restore-mode.on.danger { background:var(--dangerbg); border-color:var(--danger);
+                              color:var(--danger); }
+    .restore-mode:disabled { opacity:.4; cursor:default; }
+    .restore-bar { height:10px; background:var(--accentbg); border-radius:999px;
+                   overflow:hidden; margin:.75rem 0 .5rem; }
+    .restore-bar-fill { height:100%; width:0; background:var(--accent); border-radius:999px;
+                        transition:width .4s ease; }
+    .restore-bar-fill.paused { background:var(--warning); }
+    .restore-bar-fill.done   { background:var(--success); }
+    .restore-bar-fill.failed { background:var(--danger); }
+    .restore-stats { display:flex; gap:1rem; flex-wrap:wrap; font-size:.8125rem; color:var(--muted); }
+    .restore-phases { list-style:none; margin:.85rem 0 0; padding:0; font-size:.8125rem; }
+    .restore-phases li { padding:.15rem 0; color:var(--muted); }
+    .restore-phases li.done::before   { content:'✓ '; color:var(--success); }
+    .restore-phases li.active::before { content:'▶ '; color:var(--accent); }
+    .restore-phases li.todo::before   { content:'· '; }
+    .restore-phases li.active { color:var(--text); font-weight:600; }
+    #restore-banner { cursor:pointer; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Platform admin <span>Multi-org</span></h1>
+    <a href="/logout">Sign out</a>
+  </header>
+
+  <div id="platform-backup-banner" style="display:none;background:var(--warningbg);color:var(--warning);border:1px solid var(--warningline);padding:.6rem 1rem;border-radius:var(--radius-sm);margin:.5rem 0;font-size:.85rem"></div>
+
+  <!-- A restore outlives the tab that started it, so it has to be findable
+       from anywhere in the page rather than only from the modal. -->
+  <div id="restore-banner" style="display:none;background:var(--accentbg);color:var(--accent);border:1px solid var(--accentline);padding:.6rem 1rem;border-radius:var(--radius-sm);margin:.5rem 0;font-size:.85rem"></div>
+
+  <div class="card">
+    <h2>Create a new organization</h2>
+    <div class="form-row">
+      <input id="new-org-name"     placeholder="Display name (Acme Inc.)">
+      <input id="new-org-slug"     placeholder="slug (acme)">
+      <input id="new-org-domain"   placeholder="domain (acme.com)">
+      <input id="new-org-email"    placeholder="first admin email" type="email">
+      <input id="new-org-maxteams" type="number" placeholder="max teams" value="5" style="width:110px">
+      <select id="new-org-mfa">
+        <option value="enforced">MFA enforced</option>
+        <option value="optional">MFA optional</option>
+      </select>
+      <button class="btn" onclick="createOrg()">Create</button>
+    </div>
+    <div id="new-org-result"></div>
+  </div>
+
+  <div class="card">
+    <h2>Organizations</h2>
+    <div id="orgs-list">Loading…</div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+      <h2 style="margin:0">Recycle Bin</h2>
+      <span id="recycle-count" style="font-size:0.75rem;color:var(--muted)"></span>
+    </div>
+    <p style="font-size:0.8125rem;color:var(--muted);margin-bottom:1rem">
+      Deleted orgs are held here for 90 days before being permanently purged.
+      Restore to move back to Offboarded, or Permanently Delete to remove all data immediately.
+    </p>
+    <div id="recycle-list">Loading…</div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+      <h2 style="margin:0">Archived Orgs</h2>
+      <span id="archived-count" style="font-size:0.75rem;color:var(--muted)"></span>
+    </div>
+    <p style="font-size:0.8125rem;color:var(--muted);margin-bottom:1rem">
+      Archived orgs are kept indefinitely. Restore to move back to Offboarded,
+      or Delete to send to the Recycle Bin (90-day grace period).
+    </p>
+    <div id="archived-list">Loading…</div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
+      <h2 style="margin:0">Org backups</h2>
+      <div style="display:flex;gap:0.5rem">
+        <button class="btn secondary" onclick="document.getElementById('import-org-file').click()">Import org from backup</button>
+        <button class="btn secondary" onclick="openTargetsModal()">Configure backup targets (S3 / SSH)</button>
+      </div>
+    </div>
+    <input type="file" id="import-org-file" accept=".zip,application/zip,.tar.gz,.tgz,application/gzip"
+           style="display:none" onchange="handleImportOrgUpload(event)">
+    <p style="font-size:0.8125rem;color:var(--muted);margin-bottom:0">
+      Full org snapshots bundle database records, memories, and wiki files.
+      Click <strong>Backups</strong> on any org row to manage schedules and archives,
+      or use <strong>Import org from backup</strong> to bring an org over from
+      another platform (e.g. staging → prod).
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>Platform admins</h2>
+    <p style="font-size:0.8125rem;color:var(--muted);margin-bottom:1rem">
+      Global super-admins.  No org affiliation, can manage every Org.  The last
+      remaining platform admin cannot be deleted.
+    </p>
+    <div class="form-row">
+      <input id="new-admin-username" placeholder="username (no @domain)">
+      <input id="new-admin-display"  placeholder="display name (optional)">
+      <input id="new-admin-password" type="password" placeholder="password (8+ chars)">
+      <button class="btn" onclick="createPlatformAdmin()">Add</button>
+    </div>
+    <div id="admins-list">Loading…</div>
+  </div>
+</div>
+
+<!-- ── Backup targets modal (S3 + SSH) ───────────────────────────────────── -->
+<div class="modal-backdrop" id="targets-modal" onclick="if(event.target===this)closeTargetsModal()">
+  <div class="modal" role="dialog" aria-modal="true" style="max-width:700px">
+    <h3>Backup targets <span class="close" onclick="closeTargetsModal()">×</span></h3>
+    <p style="font-size:0.8125rem;color:var(--muted);margin-bottom:1rem">
+      Configure where org snapshots are stored.  Per-org schedules choose which
+      targets to use.  At least one target must be active.
+    </p>
+
+    <!-- Global backup passcode -->
+    <div style="font-size:0.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:.5rem">Encryption passcode</div>
+    <div class="s3-form" style="border-bottom:1px solid var(--line);padding-bottom:.75rem;margin-bottom:1rem">
+      <p style="font-size:0.78rem;color:var(--muted);margin:0 0 .5rem">
+        Backups are encrypted at rest (AES-256-GCM). This global passcode encrypts every org backup
+        unless an org sets its own override. <strong>Required before any backup runs.</strong>
+      </p>
+      <input id="backup-passcode" type="password" autocomplete="new-password" placeholder="Set / change global backup passcode">
+      <div style="display:flex;gap:.5rem;align-items:center;margin-top:.4rem">
+        <button class="btn" onclick="saveBackupPasscode()">Save passcode</button>
+        <span id="backup-passcode-status" style="font-size:.78rem;color:var(--muted)"></span>
+      </div>
+      <div id="backup-passcode-alert" style="font-size:0.8125rem;margin-top:.4rem"></div>
+    </div>
+
+    <!-- S3 section -->
+    <div style="font-size:0.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:.5rem">S3-compatible storage</div>
+    <div class="s3-form">
+      <div style="margin-bottom:0.5rem"><label><input type="checkbox" id="s3-enabled"> Enable S3 target</label></div>
+      <label style="font-size:0.75rem;color:var(--muted)">Endpoint URL (leave blank for AWS S3)</label>
+      <input id="s3-endpoint" placeholder="https://s3.example.com" type="url">
+      <label style="font-size:0.75rem;color:var(--muted)">Access Key</label>
+      <input id="s3-access-key" placeholder="Access key ID">
+      <label style="font-size:0.75rem;color:var(--muted)">Secret Key</label>
+      <input id="s3-secret-key" type="password" placeholder="Secret access key">
+      <label style="font-size:0.75rem;color:var(--muted)">Bucket</label>
+      <input id="s3-bucket" placeholder="my-elefant-backups">
+      <label style="font-size:0.75rem;color:var(--muted)">Region</label>
+      <input id="s3-region" placeholder="us-east-1">
+      <label style="font-size:0.75rem;color:var(--muted)">Prefix (path inside bucket)</label>
+      <input id="s3-prefix" placeholder="org-backups/">
+    </div>
+    <div id="s3-alert" style="font-size:0.8125rem;margin:.25rem 0 .75rem"></div>
+    <div style="display:flex;gap:0.5rem;margin-bottom:1.25rem">
+      <button class="btn" onclick="saveS3Config()">Save S3</button>
+      <button class="btn secondary" onclick="testS3Config()">Test connection</button>
+    </div>
+
+    <!-- SSH section -->
+    <div style="font-size:0.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:.5rem;border-top:1px solid var(--line);padding-top:.75rem">SSH / SFTP target</div>
+    <div class="s3-form">
+      <div style="margin-bottom:0.5rem"><label><input type="checkbox" id="ssh-enabled"> Enable SSH/SFTP target</label></div>
+      <label style="font-size:0.75rem;color:var(--muted)">Host</label>
+      <input id="ssh-host" placeholder="backup.example.com">
+      <label style="font-size:0.75rem;color:var(--muted)">Port</label>
+      <input id="ssh-port" type="number" placeholder="22" value="22" style="width:100px">
+      <label style="font-size:0.75rem;color:var(--muted)">Username</label>
+      <input id="ssh-username" placeholder="backupuser">
+      <label style="font-size:0.75rem;color:var(--muted)">Remote path (base directory)</label>
+      <input id="ssh-remote-path" placeholder="/srv/elefant-backups">
+      <label style="font-size:0.75rem;color:var(--muted)">Auth method</label>
+      <select id="ssh-auth-method" onchange="updateSshAuthFields()">
+        <option value="key">SSH private key</option>
+        <option value="password">Password</option>
+      </select>
+      <div id="ssh-key-field">
+        <label style="font-size:0.75rem;color:var(--muted)">Private key (PEM)</label>
+        <textarea id="ssh-private-key" rows="4" style="width:100%;background:var(--field);color:var(--text);border:1px solid var(--accentline);border-radius:var(--radius-xs);padding:.4rem .6rem;font-family:ui-monospace,monospace;font-size:.75rem;resize:vertical" placeholder="-----BEGIN RSA PRIVATE KEY-----&#10;..."></textarea>
+      </div>
+      <div id="ssh-password-field" style="display:none">
+        <label style="font-size:0.75rem;color:var(--muted)">Password</label>
+        <input id="ssh-password" type="password" placeholder="SSH password">
+      </div>
+    </div>
+    <div id="ssh-alert" style="font-size:0.8125rem;margin:.25rem 0 .75rem"></div>
+    <div style="display:flex;gap:0.5rem">
+      <button class="btn" onclick="saveSshConfig()">Save SSH</button>
+      <button class="btn secondary" onclick="testSshConfig()">Test connection</button>
+      <button class="btn secondary" onclick="closeTargetsModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Org backup panel modal ────────────────────────────────────────────── -->
+<div class="modal-backdrop" id="backup-modal" onclick="if(event.target===this)closeBackupModal()">
+  <div class="modal" role="dialog" aria-modal="true" style="max-width:820px">
+    <h3>
+      Backups — <span id="backup-modal-org-name">…</span>
+      <span class="close" onclick="closeBackupModal()">×</span>
+    </h3>
+
+    <!-- Schedule section -->
+    <div style="font-size:0.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:.5rem">Automatic schedule</div>
+    <div style="display:flex;gap:.75rem;flex-wrap:wrap;align-items:center;margin-bottom:.25rem">
+      <label style="font-size:.8125rem"><input type="checkbox" id="sched-enabled"> Enabled</label>
+      <label style="font-size:.8125rem">Every
+        <input id="sched-interval" type="number" min="1" value="24" style="width:60px;margin:0 .25rem"> hours
+      </label>
+      <label style="font-size:.8125rem">Keep for
+        <input id="sched-retention" type="number" min="0" value="30" style="width:60px;margin:0 .25rem"> days
+      </label>
+    </div>
+    <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:.75rem;font-size:.8125rem">
+      <span style="color:var(--muted)">Targets:</span>
+      <label><input type="checkbox" id="sched-local"> Local</label>
+      <label><input type="checkbox" id="sched-s3"> S3</label>
+      <label><input type="checkbox" id="sched-ssh"> SSH</label>
+      <button class="btn secondary" style="padding:.25rem .6rem;font-size:.75rem" onclick="saveSchedule()">Save schedule</button>
+      <button class="btn secondary" style="padding:.25rem .6rem;font-size:.75rem" onclick="closeBackupModal();openTargetsModal()">Configure S3 / SSH →</button>
+      <span id="sched-alert" style="font-size:.75rem;align-self:center"></span>
+    </div>
+    <div style="display:flex;gap:.5rem;align-items:center;margin-bottom:.75rem;font-size:.8125rem">
+      <label>Per-org passcode override:
+        <input id="sched-passcode" type="password" autocomplete="new-password" placeholder="blank = use global" style="margin-left:.25rem">
+      </label>
+      <span id="sched-passcode-status" style="color:var(--muted)"></span>
+    </div>
+
+    <!-- Manual actions -->
+    <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:.75rem">
+      <button class="btn" onclick="backupOrgNow()">Backup now</button>
+      <label class="btn secondary" style="cursor:pointer">
+        Upload &amp; review restore <input type="file" id="restore-upload" accept=".zip,application/zip,.tar.gz,application/gzip" style="display:none" onchange="handleRestoreUpload(event)">
+      </label>
+    </div>
+    <div id="backup-pending-embeds"></div>
+    <div id="backup-modal-alert" style="font-size:0.8125rem;margin-bottom:0.75rem"></div>
+    <div id="backup-modal-list">Loading…</div>
+  </div>
+</div>
+
+<!-- ── Restore review / progress modal ───────────────────────────────────────
+     Two states in one dialog: what the bundle would do (nothing has run yet),
+     and what it is doing (it has). Closing the dialog never stops the job —
+     reopening reattaches, which is the whole point. -->
+<div class="modal-backdrop" id="restore-modal" onclick="if(event.target===this)closeRestoreModal()">
+  <div class="modal" role="dialog" aria-modal="true" style="max-width:720px">
+    <h3>
+      <span id="restore-modal-title">Review restore</span>
+      <span class="close" onclick="closeRestoreModal()">×</span>
+    </h3>
+
+    <div id="restore-review" style="display:none">
+      <div id="restore-review-body"></div>
+      <div style="margin-top:1rem;display:flex;gap:.5rem;justify-content:flex-end">
+        <button class="btn secondary" onclick="discardStagedRestore()">Cancel — change nothing</button>
+        <button class="btn danger" id="restore-proceed" onclick="proceedWithRestore()">Proceed with restore</button>
+      </div>
+    </div>
+
+    <div id="restore-progress" style="display:none">
+      <div class="restore-sub" id="restore-progress-source"></div>
+      <div class="restore-bar"><div class="restore-bar-fill" id="restore-bar-fill"></div></div>
+      <div class="restore-stats" id="restore-stats"></div>
+      <ol class="restore-phases" id="restore-phases"></ol>
+      <div id="restore-outcome" style="margin-top:.85rem;font-size:.8125rem"></div>
+      <div id="restore-controls" style="margin-top:1rem;display:flex;gap:.5rem;justify-content:flex-end"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Domains modal ─────────────────────────────────────────────────────── -->
+<div class="modal-backdrop" id="domains-modal" onclick="if (event.target===this) closeDomainsModal()">
+  <div class="modal" role="dialog" aria-modal="true">
+    <h3>
+      Domains for <span id="domains-modal-org-name">…</span>
+      <span class="close" onclick="closeDomainsModal()">×</span>
+    </h3>
+    <p style="font-size:0.8125rem;color:var(--muted);margin-bottom:1rem">
+      Org admins must live on the <strong>primary</strong> domain; team admins
+      and users may live on any verified domain.  Verification is a one-time
+      CNAME lookup — once verified, the customer can remove the DNS entry.
+    </p>
+
+    <div class="form-row">
+      <input id="domains-modal-input" placeholder="acmecorp.io" style="flex:1">
+      <button class="btn" onclick="addDomainForOrg()">+ Add domain</button>
+    </div>
+    <div id="domains-modal-alert" style="margin-bottom:0.75rem;font-size:0.8125rem"></div>
+
+    <div id="domains-modal-list">Loading…</div>
+  </div>
+</div>
+
+<!-- ── Manage org modal ──────────────────────────────────────────────────── -->
+<div class="modal-backdrop" id="manage-modal" onclick="if(event.target===this)closeManageOrgModal()">
+  <div class="modal" role="dialog" aria-modal="true" style="max-width:520px">
+    <h3>
+      Manage <span id="manage-modal-org-name">…</span>
+      <span class="close" onclick="closeManageOrgModal()">×</span>
+    </h3>
+    <div id="manage-modal-meta" style="font-size:.8125rem;color:var(--muted);margin-bottom:1rem"></div>
+    <div id="manage-modal-actions"></div>
+  </div>
+</div>
+
+<!-- ── Backup passcode prompt (masked) ───────────────────────────────────── -->
+<div class="modal-backdrop" id="passcode-modal" onclick="if(event.target===this)_passcodeResolve&&_passcodeResolve(null)">
+  <div class="modal" role="dialog" aria-modal="true" style="max-width:440px">
+    <h3>Backup passcode</h3>
+    <p id="passcode-modal-msg" style="font-size:.85rem;color:var(--muted);margin-bottom:.75rem"></p>
+    <input id="passcode-modal-input" type="password" autocomplete="off" style="width:100%" placeholder="Passcode">
+    <div style="margin-top:1rem;display:flex;gap:.5rem;justify-content:flex-end">
+      <button class="btn secondary" id="passcode-modal-cancel">Cancel</button>
+      <button class="btn" id="passcode-modal-ok">OK</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = (sel) => document.querySelector(sel);
+const escHtml = (s='') => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+// Masked passcode prompt (browser prompt() is plaintext). Returns the entered
+// string, or null if cancelled.
+let _passcodeResolve = null;
+function askPasscode(message) {
+  return new Promise((resolve) => {
+    const m = $('#passcode-modal');
+    const input = $('#passcode-modal-input');
+    $('#passcode-modal-msg').textContent = message || 'Enter the backup passcode';
+    input.value = '';
+    m.classList.add('open');
+    setTimeout(() => input.focus(), 50);
+    const finish = (val) => {
+      m.classList.remove('open');
+      $('#passcode-modal-ok').onclick = null;
+      $('#passcode-modal-cancel').onclick = null;
+      input.onkeydown = null;
+      _passcodeResolve = null;
+      resolve(val);
+    };
+    _passcodeResolve = finish;
+    $('#passcode-modal-ok').onclick = () => finish(input.value);
+    $('#passcode-modal-cancel').onclick = () => finish(null);
+    input.onkeydown = (e) => { if (e.key === 'Enter') finish(input.value); else if (e.key === 'Escape') finish(null); };
+  });
+}
+
+let _orgsById = {};
+
+async function loadOrgs() {
+  const r = await fetch('/api/platform/orgs');
+  if (!r.ok) {
+    ['orgs-list','recycle-list','archived-list'].forEach(id => {
+      $(`#${id}`).innerHTML = '<div style="color:var(--danger)">Failed to load orgs.</div>';
+    });
+    return;
+  }
+  const all = (await r.json()).orgs || [];
+  _orgsById = {};
+  all.forEach(o => { _orgsById[o.id] = o; });
+
+  const active    = all.filter(o => o.lifecycle_status === 'active' || (!o.lifecycle_status && o.is_active));
+  const offboarded = all.filter(o => o.lifecycle_status === 'offboarded' || (!o.lifecycle_status && !o.is_active && o.lifecycle_status !== 'recycled' && o.lifecycle_status !== 'archived'));
+  const recycled  = all.filter(o => o.lifecycle_status === 'recycled');
+  const archived  = all.filter(o => o.lifecycle_status === 'archived');
+
+  const mainOrgs = [...active, ...offboarded];
+  const orgTable = (rows, rowFn) => rows.length
+    ? `<table><thead><tr>
+         <th>Name</th><th>Slug</th><th>Domain</th><th>MFA</th><th>Users</th><th>Teams</th><th>Status</th><th></th>
+       </tr></thead><tbody>${rows.map(rowFn).join('')}</tbody></table>`
+    : '<div style="color:var(--muted);font-size:13px">None.</div>';
+
+  $('#orgs-list').innerHTML = orgTable(mainOrgs, orgRow);
+
+  // Recycle Bin
+  $('#recycle-count').textContent = recycled.length ? `${recycled.length} org${recycled.length > 1 ? 's' : ''}` : '';
+  $('#recycle-list').innerHTML = recycled.length
+    ? `<table><thead><tr><th>Name</th><th>Slug</th><th>Deleted</th><th>Expires</th><th></th></tr></thead><tbody>${
+        recycled.map(recycleRow).join('')
+      }</tbody></table>`
+    : '<div style="color:var(--muted);font-size:13px">Recycle bin is empty.</div>';
+
+  // Archived Orgs
+  $('#archived-count').textContent = archived.length ? `${archived.length} org${archived.length > 1 ? 's' : ''}` : '';
+  $('#archived-list').innerHTML = archived.length
+    ? `<table><thead><tr><th>Name</th><th>Slug</th><th>Users</th><th>Created</th><th></th></tr></thead><tbody>${
+        archived.map(archiveRow).join('')
+      }</tbody></table>`
+    : '<div style="color:var(--muted);font-size:13px">No archived organizations.</div>';
+}
+
+function orgRow(o) {
+  // Domain cell is a button that opens the per-org domains modal.  The
+  // badge shows the primary domain + verification state; the modal
+  // surfaces secondaries, verification CNAMEs, and management actions.
+  const innerBadge = o.domain
+    ? (o.domain_verified
+       ? `<span class="badge ok">${escHtml(o.domain)}</span>`
+       : `<span class="badge warn">${escHtml(o.domain)} unverified</span>`)
+    : '<span class="badge muted">no domain</span>';
+  const domainCell =
+    `<button class="domain-pill-button" title="Manage domains" onclick="openDomainsModal('${o.id}', '${escHtml(o.display_name || o.name)}')">
+       ${innerBadge}
+       <div style="font-size:0.65rem;color:var(--muted);margin-top:0.15rem">manage →</div>
+     </button>`;
+  const mfa = o.mfa_policy === 'enforced'
+    ? '<span class="badge ok">enforced</span>'
+    : '<span class="badge warn">optional</span>';
+  const isActive = o.lifecycle_status === 'active' || (!o.lifecycle_status && o.is_active);
+  const status = isActive
+    ? '<span class="badge ok">active</span>'
+    : '<span class="badge muted">offboarded</span>';
+  const actions = `<button class="btn secondary" onclick="openManageOrgModal('${o.id}')">Edit</button>`;
+  return `<tr>
+    <td><strong>${escHtml(o.display_name || o.name)}</strong></td>
+    <td style="font-family:ui-monospace,monospace;color:var(--muted)">${escHtml(o.slug)}</td>
+    <td>${domainCell}</td>
+    <td>${mfa}</td>
+    <td>${o.user_count || 0}</td>
+    <td>${o.team_count || 0} / ${o.max_teams}</td>
+    <td>${status}</td>
+    <td style="white-space:nowrap">${actions}</td>
+  </tr>`;
+}
+
+function recycleRow(o) {
+  const recycledDate = o.recycled_at ? o.recycled_at.slice(0,10) : '—';
+  const expiresDate = o.recycled_at
+    ? new Date(new Date(o.recycled_at).getTime() + 90*24*60*60*1000).toISOString().slice(0,10)
+    : '—';
+  const daysLeft = o.recycled_at
+    ? Math.max(0, Math.ceil((new Date(o.recycled_at).getTime() + 90*24*60*60*1000 - Date.now()) / (24*60*60*1000)))
+    : null;
+  const expBadge = daysLeft !== null
+    ? (daysLeft <= 7 ? `<span class="badge" style="background:var(--dangerbg);color:var(--danger)">${daysLeft}d left</span>`
+                    : `<span class="badge muted">${daysLeft}d left</span>`)
+    : '';
+  return `<tr>
+    <td><strong>${escHtml(o.display_name || o.name)}</strong></td>
+    <td style="font-family:ui-monospace,monospace;color:var(--muted)">${escHtml(o.slug)}</td>
+    <td style="color:var(--muted)">${recycledDate}</td>
+    <td>${expiresDate} ${expBadge}</td>
+    <td style="white-space:nowrap">
+      <button class="btn secondary" onclick="restoreOrg('${o.id}', '${escHtml(o.name)}')">Restore</button>
+      <button class="btn danger" onclick="purgeOrg('${o.id}', '${escHtml(o.name)}')">Permanently Delete</button>
+    </td>
+  </tr>`;
+}
+
+function archiveRow(o) {
+  return `<tr>
+    <td><strong>${escHtml(o.display_name || o.name)}</strong></td>
+    <td style="font-family:ui-monospace,monospace;color:var(--muted)">${escHtml(o.slug)}</td>
+    <td>${o.user_count || 0}</td>
+    <td style="color:var(--muted)">${(o.created_at || '').slice(0,10)}</td>
+    <td style="white-space:nowrap">
+      <button class="btn secondary" onclick="restoreOrg('${o.id}', '${escHtml(o.name)}')">Restore</button>
+      <button class="btn danger" onclick="recycleOrg('${o.id}', '${escHtml(o.name)}')">Delete</button>
+    </td>
+  </tr>`;
+}
+
+async function createOrg() {
+  const body = {
+    name:        $('#new-org-name').value.trim(),
+    slug:        $('#new-org-slug').value.trim() || undefined,
+    domain:      $('#new-org-domain').value.trim() || undefined,
+    admin_email: $('#new-org-email').value.trim() || undefined,
+    max_teams:   parseInt($('#new-org-maxteams').value) || 5,
+    mfa_policy:  $('#new-org-mfa').value,
+  };
+  if (!body.name) return alert('Name is required');
+  const r = await fetch('/api/platform/orgs', { method:'POST',
+    headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  if (!r.ok) return alert('Failed: ' + ((await r.json()).detail || ''));
+  const data = await r.json();
+  $('#new-org-result').innerHTML =
+    `<div class="invite-out">
+       <strong>Org created.</strong> Share this with the first admin:<br>
+       URL: <code>${escHtml(data.invite.invite_url || data.invite.url_path)}</code><br>
+       Code: <code style="font-weight:700">${escHtml(data.invite.code)}</code><br>
+       Expires: ${data.invite.expires_at?.slice(0,10)}
+     </div>`;
+  ['#new-org-name','#new-org-slug','#new-org-domain','#new-org-email'].forEach(s => $(s).value = '');
+  loadOrgs();
+}
+
+async function inviteAdmin(orgId) {
+  const email = prompt('Optional email for the invite (just hit OK to skip):') || undefined;
+  const r = await fetch(`/api/platform/orgs/${orgId}/invite-admin`, { method:'POST',
+    headers:{'Content-Type':'application/json'}, body: JSON.stringify({ email })});
+  if (!r.ok) return alert('Failed: ' + ((await r.json()).detail || ''));
+  const data = await r.json();
+  alert(`Invite created.\n\nURL: ${data.invite.invite_url || data.invite.url_path}\nCode: ${data.invite.code}`);
+}
+
+async function setMfa(orgId, policy) {
+  if (!confirm(`Set MFA policy for this org to "${policy}"?`)) return;
+  await fetch(`/api/platform/orgs/${orgId}`, { method:'PATCH',
+    headers:{'Content-Type':'application/json'}, body: JSON.stringify({ mfa_policy: policy })});
+  loadOrgs();
+}
+
+async function offboard(orgId, name) {
+  if (!confirm(`Offboard "${name}"?  Org will be deactivated; data is retained.`)) return;
+  await fetch('/api/platform/orgs/' + orgId, { method:'DELETE' });
+  loadOrgs();
+}
+
+async function reactivateOrg(orgId, name) {
+  if (!confirm(`Reactivate "${name}"?  Users will regain access immediately.`)) return;
+  const r = await fetch(`/api/platform/orgs/${orgId}/reactivate`, { method:'POST' });
+  if (!r.ok) return alert('Failed: ' + ((await r.json()).detail || ''));
+  loadOrgs();
+}
+
+async function recycleOrg(orgId, name) {
+  if (!confirm(`Move "${name}" to the Recycle Bin?\n\nIt will be permanently deleted after 90 days unless restored.`)) return;
+  const r = await fetch(`/api/platform/orgs/${orgId}/recycle`, { method:'POST' });
+  if (!r.ok) return alert('Failed: ' + ((await r.json()).detail || ''));
+  loadOrgs();
+}
+
+async function archiveOrg(orgId, name) {
+  if (!confirm(`Archive "${name}"?\n\nThe org will be stored indefinitely. You can restore it or delete it later.`)) return;
+  const r = await fetch(`/api/platform/orgs/${orgId}/archive`, { method:'POST' });
+  if (!r.ok) return alert('Failed: ' + ((await r.json()).detail || ''));
+  loadOrgs();
+}
+
+async function restoreOrg(orgId, name) {
+  if (!confirm(`Restore "${name}" to Offboarded status?`)) return;
+  const r = await fetch(`/api/platform/orgs/${orgId}/restore`, { method:'POST' });
+  if (!r.ok) return alert('Failed: ' + ((await r.json()).detail || ''));
+  loadOrgs();
+}
+
+async function purgeOrg(orgId, name) {
+  const confirm1 = confirm(`⚠️ Permanently delete "${name}"?\n\nThis will IRREVERSIBLY remove all users, wiki files, memories, backups, and all other data for this org.\n\nClick OK to confirm.`);
+  if (!confirm1) return;
+  const typed = prompt(`Type the org name exactly to confirm permanent deletion:\n\n"${name}"`);
+  if (typed !== name) return alert('Name did not match. Deletion cancelled.');
+  const r = await fetch(`/api/platform/orgs/${orgId}/purge`, { method:'DELETE' });
+  if (!r.ok) return alert('Failed: ' + ((await r.json()).detail || ''));
+  loadOrgs();
+}
+
+// ── Platform admins card ─────────────────────────────────────────────────────
+
+async function loadAdmins() {
+  const r = await fetch('/api/platform/admins');
+  if (!r.ok) {
+    $('#admins-list').innerHTML = '<div style="color:var(--danger);font-size:13px">Failed to load admins.</div>';
+    return;
+  }
+  const admins = (await r.json()).admins || [];
+  $('#admins-list').innerHTML = admins.length
+    ? `<table><thead><tr><th>Username</th><th>Display name</th><th>Created</th><th>Last login</th><th></th></tr></thead><tbody>${
+        admins.map(a => `<tr>
+          <td><strong>${escHtml(a.full_username || a.username)}</strong></td>
+          <td>${escHtml(a.display_name || '')}</td>
+          <td style="color:var(--muted);font-size:12px">${(a.created_at || '').slice(0,10)}</td>
+          <td style="color:var(--muted);font-size:12px">${(a.last_login_at || '—').slice(0,10)}</td>
+          <td><button class="btn danger" onclick="deletePlatformAdmin('${a.id}', '${escHtml(a.full_username || a.username)}')">Delete</button></td>
+        </tr>`).join('')
+      }</tbody></table>`
+    : '<div style="color:var(--muted);font-size:13px">No platform admins.</div>';
+}
+
+async function createPlatformAdmin() {
+  const username = $('#new-admin-username').value.trim();
+  const password = $('#new-admin-password').value;
+  const display_name = $('#new-admin-display').value.trim();
+  if (!username || password.length < 8) {
+    alert('Username and an 8+ char password are required.');
+    return;
+  }
+  const r = await fetch('/api/platform/admins', { method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ username, password, display_name })});
+  if (!r.ok) return alert('Failed: ' + ((await r.json()).detail || ''));
+  ['#new-admin-username','#new-admin-password','#new-admin-display'].forEach(s => $(s).value = '');
+  loadAdmins();
+}
+
+async function deletePlatformAdmin(id, name) {
+  if (!confirm(`Delete platform admin "${name}"?`)) return;
+  const r = await fetch('/api/platform/admins/' + id, { method:'DELETE' });
+  if (!r.ok && r.status !== 204) return alert('Failed: ' + ((await r.json()).detail || ''));
+  loadAdmins();
+}
+
+// ── Domains modal (per-org) ──────────────────────────────────────────────────
+let _modalOrgId = null;
+
+function openDomainsModal(orgId, orgName) {
+  _modalOrgId = orgId;
+  $('#domains-modal-org-name').textContent = orgName || '';
+  $('#domains-modal-input').value = '';
+  $('#domains-modal-alert').textContent = '';
+  $('#domains-modal').classList.add('open');
+  loadModalDomains();
+}
+
+function closeDomainsModal() {
+  $('#domains-modal').classList.remove('open');
+  _modalOrgId = null;
+  loadOrgs();   // refresh badge in case primary changed
+}
+
+// One menu row in the Manage-org modal: a labelled action with a button on
+// the right (danger/primary actions keep their colour confined to the button).
+function manageActionRow(label, desc, btnLabel, onclick, kind = 'secondary') {
+  return `<div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.65rem 0;border-bottom:1px solid var(--line)">
+    <div>
+      <div style="font-weight:600;font-size:.875rem">${label}</div>
+      <div style="font-size:.75rem;color:var(--muted)">${desc}</div>
+    </div>
+    <button class="btn ${kind}" style="white-space:nowrap" onclick="${onclick}">${btnLabel}</button>
+  </div>`;
+}
+
+// Consolidated admin menu for a single org. Replaces the per-row button
+// cluster; a focused place to grow future admin options.
+function openManageOrgModal(orgId) {
+  const o = _orgsById[orgId];
+  if (!o) return;
+  const isActive = o.lifecycle_status === 'active' || (!o.lifecycle_status && o.is_active);
+  const id = o.id;
+  const nm = escHtml(o.name);
+  const dn = escHtml(o.display_name || o.name);
+
+  $('#manage-modal-org-name').textContent = o.display_name || o.name;
+  const statusBadge = isActive
+    ? '<span class="badge ok">active</span>'
+    : '<span class="badge muted">offboarded</span>';
+  const mfaBadge = o.mfa_policy === 'enforced'
+    ? '<span class="badge ok">MFA enforced</span>'
+    : '<span class="badge warn">MFA optional</span>';
+  $('#manage-modal-meta').innerHTML =
+    `<span style="font-family:ui-monospace,monospace">${escHtml(o.slug)}</span> · ${statusBadge} · ${mfaBadge} · ${o.user_count || 0} users · ${o.team_count || 0}/${o.max_teams} teams`;
+
+  const rows = [
+    manageActionRow('Domains', 'Add or verify domains for this org', 'Manage',
+      `closeManageOrgModal();openDomainsModal('${id}','${dn}')`),
+    manageActionRow('Backups', 'Schedules, targets, and restore', 'Open',
+      `closeManageOrgModal();openBackupModal('${id}','${dn}')`),
+  ];
+  if (isActive) {
+    rows.push(manageActionRow('Invite admin', 'Create an org-admin invite link', 'Invite',
+      `closeManageOrgModal();inviteAdmin('${id}')`));
+    rows.push(manageActionRow('MFA policy',
+      o.mfa_policy === 'enforced' ? 'Currently enforced for all users' : 'Currently optional',
+      o.mfa_policy === 'enforced' ? 'Make optional' : 'Enforce',
+      `closeManageOrgModal();setMfa('${id}','${o.mfa_policy === 'enforced' ? 'optional' : 'enforced'}')`));
+    rows.push(manageActionRow('Offboard', 'Deactivate the org (data retained)', 'Offboard',
+      `closeManageOrgModal();offboard('${id}','${nm}')`, 'danger'));
+  } else {
+    rows.push(manageActionRow('Reactivate', 'Restore access for all users', 'Reactivate',
+      `closeManageOrgModal();reactivateOrg('${id}','${nm}')`, 'primary'));
+    rows.push(manageActionRow('Archive', 'Store indefinitely (restorable later)', 'Archive',
+      `closeManageOrgModal();archiveOrg('${id}','${nm}')`));
+    rows.push(manageActionRow('Delete', 'Move to the Recycle Bin (90-day grace)', 'Delete',
+      `closeManageOrgModal();recycleOrg('${id}','${nm}')`, 'danger'));
+  }
+  $('#manage-modal-actions').innerHTML = rows.join('');
+  $('#manage-modal').classList.add('open');
+}
+
+function closeManageOrgModal() {
+  $('#manage-modal').classList.remove('open');
+}
+
+function modalAlert(msg, kind = 'error') {
+  const el = $('#domains-modal-alert');
+  if (!msg) { el.textContent = ''; return; }
+  el.style.color = kind === 'error' ? 'var(--danger)' : 'var(--success)';
+  el.textContent = msg;
+}
+
+async function loadModalDomains() {
+  if (!_modalOrgId) return;
+  const wrap = $('#domains-modal-list');
+  wrap.innerHTML = 'Loading…';
+  const r = await fetch(`/api/platform/orgs/${_modalOrgId}/domains`);
+  if (!r.ok) { wrap.innerHTML = '<div style="color:var(--danger)">Failed to load.</div>'; return; }
+  const rows = (await r.json()).domains || [];
+  if (!rows.length) {
+    wrap.innerHTML = '<div style="color:var(--muted);font-size:0.8125rem">No domains yet — add one above.</div>';
+    return;
+  }
+  wrap.innerHTML = rows.map(domainCard).join('');
+}
+
+function domainCard(d) {
+  const primaryBadge = d.is_primary
+    ? '<span class="badge" style="background:var(--accent2bg);color:var(--accent2)">primary</span>'
+    : '<span class="badge muted">secondary</span>';
+  const verified = d.verified
+    ? `<span class="badge ok">✓ verified ${(d.verified_at || '').slice(0,10)}</span>`
+    : '<span class="badge warn">unverified</span>';
+  const cname = d.verified ? '' : `
+    <div class="cname-block">
+      <strong>Customer DNS record:</strong>
+      <table>
+        <tr><td style="color:var(--muted)">Type</td><td>CNAME</td></tr>
+        <tr><td style="color:var(--muted)">Host</td><td>${escHtml(d.verify_host)}</td></tr>
+        <tr><td style="color:var(--muted)">Target</td><td>${escHtml(d.verify_target)}</td></tr>
+      </table>
+      <div id="dvr-${d.id}" style="margin-top:0.5rem;font-size:0.75rem"></div>
+    </div>`;
+
+  const actions = [];
+  if (!d.verified) actions.push(`<button class="btn" onclick="modalVerify('${d.id}')">Verify now</button>`);
+  if (d.verified && !d.is_primary) actions.push(`<button class="btn secondary" onclick="modalPromote('${d.id}')">Promote to primary</button>`);
+  if (!d.is_primary) actions.push(`<button class="btn danger" onclick="modalDelete('${d.id}', '${escHtml(d.domain)}')">Delete</button>`);
+  if (d.is_primary && d.verified) actions.push(`<button class="btn secondary" onclick="modalReverify('${d.id}')">Re-verify</button>`);
+
+  return `<div class="domain-card">
+    <div class="row">
+      <strong style="font-size:0.9375rem">${escHtml(d.domain)}</strong>
+      ${primaryBadge}
+      ${verified}
+    </div>
+    ${cname}
+    <div style="margin-top:0.625rem;display:flex;gap:0.4rem;flex-wrap:wrap">${actions.join(' ')}</div>
+  </div>`;
+}
+
+async function addDomainForOrg() {
+  const input = $('#domains-modal-input');
+  const domain = input.value.trim().toLowerCase();
+  if (!domain || !domain.includes('.')) { modalAlert('Enter a valid domain like acmecorp.io.'); return; }
+  const r = await fetch(`/api/platform/orgs/${_modalOrgId}/domains`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({domain})});
+  if (!r.ok) { modalAlert('Failed: ' + ((await r.json().catch(()=>({}))).detail || r.status)); return; }
+  input.value = '';
+  modalAlert('Domain added — give the customer the CNAME record below, then click Verify.', 'ok');
+  loadModalDomains();
+}
+
+async function modalVerify(id) {
+  const r = await fetch(`/api/platform/orgs/${_modalOrgId}/domains/${id}/verify`, {method:'POST'});
+  const data = await r.json().catch(()=>({}));
+  const out = document.getElementById(`dvr-${id}`);
+  if (data.verified) {
+    if (out) out.innerHTML = '<span style="color:var(--success)">✓ Record found — domain verified.</span>';
+    setTimeout(loadModalDomains, 600);
+    return;
+  }
+  const found = (data.found || []).map(escHtml).join(', ') || '(none)';
+  if (out) {
+    out.innerHTML = `<span style="color:var(--danger)">Could not verify.</span>
+      <br><span style="color:var(--muted)">Found: ${found}</span>
+      <br><span style="color:var(--muted)">${escHtml(data.error || '')}</span>`;
+  }
+}
+
+async function modalReverify(id) {
+  // Re-verify the primary domain — useful for ops when DNS state has drifted.
+  await modalVerify(id);
+}
+
+async function modalPromote(id) {
+  if (!confirm('Promote this domain to primary?  Existing org_admins must already be on this domain.')) return;
+  const r = await fetch(`/api/platform/orgs/${_modalOrgId}/domains/${id}/promote`, {method:'POST'});
+  if (!r.ok) { modalAlert('Promote failed: ' + ((await r.json().catch(()=>({}))).detail || r.status)); return; }
+  modalAlert('Primary domain updated.', 'ok');
+  loadModalDomains();
+}
+
+async function modalDelete(id, name) {
+  if (!confirm(`Delete domain "${name}"?  Users on this domain will block deletion.`)) return;
+  const r = await fetch(`/api/platform/orgs/${_modalOrgId}/domains/${id}`, {method:'DELETE'});
+  if (!r.ok && r.status !== 204) {
+    modalAlert('Delete failed: ' + ((await r.json().catch(()=>({}))).detail || r.status));
+    return;
+  }
+  modalAlert('Domain deleted.', 'ok');
+  loadModalDomains();
+}
+
+// Esc closes modals
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if ($('#domains-modal').classList.contains('open'))  closeDomainsModal();
+    if ($('#targets-modal').classList.contains('open'))  closeTargetsModal();
+    if ($('#backup-modal').classList.contains('open'))   closeBackupModal();
+  }
+});
+
+// ── Backup targets modal (S3 + SSH) ──────────────────────────────────────────
+
+async function openTargetsModal() {
+  // Load S3 config
+  const rs = await fetch('/api/platform/backup-config');
+  if (rs.ok) {
+    const cfg = await rs.json();
+    $('#s3-enabled').checked  = !!cfg.enabled;
+    $('#s3-endpoint').value   = cfg.endpoint_url || '';
+    $('#s3-access-key').value = cfg.access_key === '***' ? '' : (cfg.access_key || '');
+    $('#s3-secret-key').value = '';
+    $('#s3-bucket').value     = cfg.bucket || '';
+    $('#s3-region').value     = cfg.region || 'us-east-1';
+    $('#s3-prefix').value     = cfg.prefix || 'org-backups/';
+  }
+  // Load SSH config
+  const rh = await fetch('/api/platform/ssh-target');
+  if (rh.ok) {
+    const cfg = await rh.json();
+    $('#ssh-enabled').checked      = !!cfg.enabled;
+    $('#ssh-host').value           = cfg.host || '';
+    $('#ssh-port').value           = cfg.port || 22;
+    $('#ssh-username').value       = cfg.username || '';
+    $('#ssh-remote-path').value    = cfg.remote_path || '';
+    $('#ssh-auth-method').value    = cfg.auth_method === 'password' ? 'password' : 'key';
+    $('#ssh-password').value       = '';
+    $('#ssh-private-key').value    = '';
+    updateSshAuthFields();
+  }
+  // Load global passcode status (never the value)
+  $('#backup-passcode').value = '';
+  $('#backup-passcode-alert').textContent = '';
+  try {
+    const rp = await fetch('/api/platform/backup-passcode');
+    if (rp.ok) {
+      const d = await rp.json();
+      const el = $('#backup-passcode-status');
+      el.textContent = d.set ? 'A global passcode is set.' : 'No passcode set — org backups will NOT run.';
+      el.style.color = d.set ? 'var(--success)' : 'var(--danger)';
+    }
+  } catch (_) {}
+  s3Alert(''); sshAlert('');
+  $('#targets-modal').classList.add('open');
+}
+
+async function saveBackupPasscode() {
+  const pc = $('#backup-passcode').value;
+  const el = $('#backup-passcode-alert');
+  if (!pc) { el.style.color = 'var(--danger)'; el.textContent = 'Enter a passcode.'; return; }
+  const r = await fetch('/api/platform/backup-passcode', {
+    method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({passcode: pc}),
+  });
+  if (!r.ok) { el.style.color = 'var(--danger)'; el.textContent = 'Save failed: ' + ((await r.json().catch(()=>({}))).detail || r.status); return; }
+  el.style.color = 'var(--success)'; el.textContent = 'Passcode saved.';
+  $('#backup-passcode').value = '';
+  $('#backup-passcode-status').textContent = 'A global passcode is set.';
+  $('#backup-passcode-status').style.color = 'var(--success)';
+  checkPlatformBackupBanner();
+}
+
+function closeTargetsModal() { $('#targets-modal').classList.remove('open'); }
+
+function s3Alert(msg, kind = 'error') {
+  const el = $('#s3-alert');
+  el.style.color = kind === 'ok' ? 'var(--success)' : 'var(--danger)';
+  el.textContent = msg;
+}
+function sshAlert(msg, kind = 'error') {
+  const el = $('#ssh-alert');
+  el.style.color = kind === 'ok' ? 'var(--success)' : 'var(--danger)';
+  el.textContent = msg;
+}
+
+function updateSshAuthFields() {
+  const isKey = $('#ssh-auth-method').value === 'key';
+  $('#ssh-key-field').style.display      = isKey ? '' : 'none';
+  $('#ssh-password-field').style.display = isKey ? 'none' : '';
+}
+
+async function saveS3Config() {
+  const body = {
+    enabled: $('#s3-enabled').checked,
+    endpoint_url: $('#s3-endpoint').value.trim() || null,
+    access_key:   $('#s3-access-key').value,
+    secret_key:   $('#s3-secret-key').value,
+    bucket:       $('#s3-bucket').value.trim() || null,
+    region:       $('#s3-region').value.trim() || 'us-east-1',
+    prefix:       $('#s3-prefix').value.trim() || 'org-backups/',
+  };
+  const r = await fetch('/api/platform/backup-config', {
+    method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body),
+  });
+  if (!r.ok) return s3Alert('Save failed: ' + ((await r.json().catch(()=>({}))).detail || r.status));
+  s3Alert('Saved.', 'ok');
+}
+
+async function testS3Config() {
+  s3Alert('Testing…');
+  const r = await fetch('/api/platform/backup-config/test', { method: 'POST' });
+  const data = await r.json().catch(() => ({}));
+  data.success ? s3Alert(data.message, 'ok') : s3Alert(data.message || 'Connection failed');
+}
+
+async function saveSshConfig() {
+  const isKey = $('#ssh-auth-method').value === 'key';
+  const body = {
+    enabled:     $('#ssh-enabled').checked,
+    host:        $('#ssh-host').value.trim() || null,
+    port:        parseInt($('#ssh-port').value) || 22,
+    username:    $('#ssh-username').value.trim() || null,
+    remote_path: $('#ssh-remote-path').value.trim() || null,
+    private_key: isKey  ? $('#ssh-private-key').value.trim() : '',
+    password:    !isKey ? $('#ssh-password').value : '',
+  };
+  const r = await fetch('/api/platform/ssh-target', {
+    method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body),
+  });
+  if (!r.ok) return sshAlert('Save failed: ' + ((await r.json().catch(()=>({}))).detail || r.status));
+  sshAlert('Saved.', 'ok');
+  // Clear sensitive fields after save
+  $('#ssh-private-key').value = ''; $('#ssh-password').value = '';
+}
+
+async function testSshConfig() {
+  sshAlert('Testing…');
+  const r = await fetch('/api/platform/ssh-target/test', { method: 'POST' });
+  const data = await r.json().catch(() => ({}));
+  data.success ? sshAlert(data.message, 'ok') : sshAlert(data.message || 'Connection failed');
+}
+
+// ── Org backup modal ─────────────────────────────────────────────────────────
+
+let _backupOrgId   = null;
+let _backupOrgName = '';
+
+async function openBackupModal(orgId, orgName) {
+  _backupOrgId   = orgId;
+  _backupOrgName = orgName;
+  $('#backup-modal-org-name').textContent = orgName;
+  backupAlert(''); schedAlert('');
+  $('#backup-modal').classList.add('open');
+  // A restore started here earlier may still be running — pick it back up
+  // rather than making the operator wonder whether it survived the refresh.
+  await Promise.all([loadSchedule(), loadOrgBackups(), reattachRestore(orgId),
+                     refreshPendingEmbeddings(orgId, 'backup-pending-embeds')]);
+}
+
+function closeBackupModal() {
+  $('#backup-modal').classList.remove('open');
+  _backupOrgId = null;
+}
+
+function backupAlert(msg, kind = 'error') {
+  const el = $('#backup-modal-alert');
+  el.style.color = kind === 'ok' ? 'var(--success)' : 'var(--danger)';
+  el.textContent = msg;
+}
+function schedAlert(msg, kind = 'ok') {
+  const el = $('#sched-alert');
+  el.style.color = kind === 'ok' ? 'var(--success)' : 'var(--danger)';
+  el.textContent = msg;
+}
+
+async function loadSchedule() {
+  if (!_backupOrgId) return;
+  const r = await fetch(`/api/platform/orgs/${_backupOrgId}/backup-schedule`);
+  if (!r.ok) return;
+  const s = await r.json();
+  $('#sched-enabled').checked   = !!s.enabled;
+  $('#sched-interval').value    = s.interval_hours || 24;
+  $('#sched-retention').value   = s.retention_days != null ? s.retention_days : 30;
+  $('#sched-local').checked     = s.use_local !== false;
+  $('#sched-s3').checked        = !!s.use_s3;
+  $('#sched-ssh').checked       = !!s.use_ssh;
+  $('#sched-passcode').value    = '';
+  const ps = $('#sched-passcode-status');
+  if (s.passcode_override_set) { ps.textContent = 'override set'; ps.style.color = 'var(--success)'; }
+  else if (s.global_passcode_set) { ps.textContent = 'using global passcode'; ps.style.color = 'var(--muted)'; }
+  else { ps.textContent = 'no passcode — backups will not run'; ps.style.color = 'var(--danger)'; }
+}
+
+async function saveSchedule() {
+  const body = {
+    enabled:        $('#sched-enabled').checked,
+    interval_hours: parseInt($('#sched-interval').value) || 24,
+    retention_days: parseInt($('#sched-retention').value) || 30,
+    use_local:      $('#sched-local').checked,
+    use_s3:         $('#sched-s3').checked,
+    use_ssh:        $('#sched-ssh').checked,
+  };
+  // Only send passcode when the operator typed one (avoids clearing an
+  // existing override on an unrelated schedule save).
+  const _pc = $('#sched-passcode').value;
+  if (_pc) body.passcode = _pc;
+  const r = await fetch(`/api/platform/orgs/${_backupOrgId}/backup-schedule`, {
+    method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body),
+  });
+  if (!r.ok) return schedAlert('Save failed: ' + ((await r.json().catch(()=>({}))).detail || r.status), 'error');
+  schedAlert('Schedule saved.', 'ok');
+}
+
+async function loadOrgBackups() {
+  if (!_backupOrgId) return;
+  const wrap = $('#backup-modal-list');
+  wrap.innerHTML = 'Loading…';
+  const r = await fetch(`/api/platform/orgs/${_backupOrgId}/backups`);
+  if (!r.ok) { wrap.innerHTML = '<div style="color:var(--danger)">Failed to load backups.</div>'; return; }
+  const { backups } = await r.json();
+  if (!backups || !backups.length) {
+    wrap.innerHTML = '<div style="color:var(--muted);font-size:0.8125rem">No backups yet — click "Backup now" to create one.</div>';
+    return;
+  }
+  wrap.innerHTML = backups.map(b => {
+    const tags = [];
+    if (b.source === 's3')  tags.push('<span class="badge s3">S3</span>');
+    else if (b.source === 'ssh') tags.push('<span class="badge" style="background:var(--successbg);color:var(--success)">SSH</span>');
+    else tags.push('<span class="badge muted">local</span>');
+    const sz = b.size_bytes ? ` · ${(b.size_bytes / 1024 / 1024).toFixed(1)} MB` : '';
+    const meta = [
+      b.user_count   != null ? `${b.user_count} users`       : null,
+      b.memory_count != null ? `${b.memory_count} memories`  : null,
+      b.wiki_file_count != null ? `${b.wiki_file_count} wiki files` : null,
+    ].filter(Boolean).join(' · ');
+    return `<div class="backup-row">
+      <div class="backup-meta">
+        <strong>${escHtml(b.filename)}</strong>
+        <span>${(b.created_at || '').slice(0,19).replace('T',' ')} UTC${sz}${meta ? ' · ' + meta : ''}</span>
+      </div>
+      ${tags.join('')}
+      ${b.source !== 's3' ? `<a class="btn secondary" href="/api/platform/orgs/${_backupOrgId}/backups/${encodeURIComponent(b.id)}/download" download="${escHtml(b.filename)}">Download</a>` : ''}
+      <button class="btn danger" onclick="restoreOrgBackup('${escHtml(b.id)}')">Restore…</button>
+    </div>`;
+  }).join('');
+}
+
+async function backupOrgNow() {
+  backupAlert('');
+  const btn = event.target;
+  btn.disabled = true; btn.textContent = 'Backing up…';
+  try {
+    const r = await fetch(`/api/platform/orgs/${_backupOrgId}/backup`, { method: 'POST' });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) { backupAlert('Backup failed: ' + (data.detail || r.status)); return; }
+    const targets = [
+      data.s3_key  ? 'S3' : null,
+      data.ssh_path ? 'SSH' : null,
+    ].filter(Boolean);
+    const detail = targets.length ? ` → ${targets.join(', ')}` : '';
+    backupAlert(`Backup created: ${data.filename}${detail}`, 'ok');
+    await loadOrgBackups();
+  } finally {
+    btn.disabled = false; btn.textContent = 'Backup now';
+  }
+}
+
+// ── Restore: review, then run ────────────────────────────────────────────────
+// A restore used to begin the moment a file was chosen. Now every entry point
+// stages the bundle, shows what it would do, and waits. `_restoreJob` is the
+// job under the operator's nose; `_restorePoll` is the timer watching it.
+
+const RESTORE_PHASES = [
+  ['preparing', 'Decrypting and unpacking the bundle'],
+  ['database',  'Restoring users, teams and configuration'],
+  ['memories',  'Re-embedding memories'],
+  ['boards',    'Restoring boards and the hot memory tier'],
+  ['wiki',      'Restoring wiki files'],
+];
+
+let _restoreJob  = null;
+let _restorePoll = null;
+
+const fmtInt = (n) => (n == null ? '—' : Number(n).toLocaleString());
+const fmtMB  = (b) => (b ? (b / 1024 / 1024).toFixed(1) + ' MB' : '—');
+
+function fmtDur(secs) {
+  if (secs == null) return null;
+  if (secs < 60) return `${Math.round(secs)}s`;
+  const m = Math.floor(secs / 60), s = Math.round(secs % 60);
+  if (m < 60) return s ? `${m}m ${s}s` : `${m}m`;
+  return `${Math.floor(m / 60)}h ${m % 60}m`;
+}
+
+function closeRestoreModal() {
+  // Closing the REVIEW is declining it: don't leave a full org backup staged
+  // on the server because someone reached for the × instead of Cancel.
+  // Closing a RUNNING restore is just looking away — it keeps going.
+  if (_restoreJob && $('#restore-review').style.display !== 'none') {
+    discardStagedRestore();
+    return;
+  }
+  $('#restore-modal').classList.remove('open');
+  stopRestorePolling();
+  checkActiveRestores();
+}
+
+function stopRestorePolling() {
+  if (_restorePoll) { clearInterval(_restorePoll); _restorePoll = null; }
+}
+
+function _showRestorePane(which) {
+  $('#restore-review').style.display   = which === 'review'   ? '' : 'none';
+  $('#restore-progress').style.display = which === 'progress' ? '' : 'none';
+  $('#restore-modal').classList.add('open');
+}
+
+// ── Step 1: analyse, and show what it would do ──────────────────────────────
+
+// Import is driven from the page, restore from inside the Backups modal — so
+// a message goes wherever the operator is actually looking.
+function stageNotice(msg, kind) {
+  if ($('#backup-modal').classList.contains('open')) backupAlert(msg, kind);
+  else if (msg && kind !== 'ok') alert(msg);
+}
+
+async function stageRestore(url, fd, label) {
+  stageNotice(`Analysing ${label}…`, 'ok');
+  let r, data = {};
+  try { r = await fetch(url, { method: 'POST', body: fd }); }
+  catch (err) { stageNotice('Could not upload the bundle: ' + err); return; }
+  try { data = await r.json(); } catch (_) {}
+  if (!r.ok) { stageNotice('Could not read that backup: ' + (data.detail || r.status)); return; }
+  stageNotice('', 'ok');
+  _restoreJob = { job_id: data.job_id, preview: data.preview, source: label };
+  _restorePlan = null;                 // a new bundle gets fresh defaults
+  renderRestoreReview();
+}
+
+// The plan the operator is currently composing: which areas, each area's
+// mode, and whether to embed now. Built from the preview, edited in place,
+// and sent with the start call.
+let _restorePlan = null;
+
+function _initRestorePlan(preview) {
+  const areas = {};
+  (preview.areas || []).forEach(a => {
+    areas[a.area] = {
+      // A whole-org restore is the safe default to LAND on: every area, every
+      // one of them merging. Picking areas is opting into a smaller blast
+      // radius; picking replace is opting into a bigger one.
+      enabled: true,
+      mode: a.modes[0],
+      meta: a,
+    };
+  });
+  _restorePlan = { areas, embed_memories: true };
+}
+
+function _planToRequest() {
+  const chosen = Object.keys(_restorePlan.areas).filter(a => _restorePlan.areas[a].enabled);
+  const modes = {};
+  chosen.forEach(a => { modes[a] = _restorePlan.areas[a].mode; });
+  return { areas: chosen, modes, embed_memories: _restorePlan.embed_memories };
+}
+
+function toggleRestoreArea(area, on) {
+  _restorePlan.areas[area].enabled = on;
+  renderRestoreReview();
+}
+
+function setRestoreAreaMode(area, mode) {
+  _restorePlan.areas[area].mode = mode;
+  renderRestoreReview();
+}
+
+function setRestoreEmbed(on) {
+  _restorePlan.embed_memories = on;
+  renderRestoreReview();
+}
+
+function renderRestoreReview() {
+  const p = _restoreJob.preview, b = p.bundle, t = p.target;
+  if (!_restorePlan) _initRestorePlan(p);
+  $('#restore-modal-title').textContent = p.creates_org ? 'Review import' : 'Review restore';
+
+  const fact = (label, value) =>
+    `<div class="restore-fact"><dt>${escHtml(label)}</dt><dd>${escHtml(String(value))}</dd></div>`;
+
+  const warns = (p.warnings || [])
+    .map(w => `<div class="restore-warn">${escHtml(w)}</div>`).join('');
+
+  // ── Area pickers ──────────────────────────────────────────────────────────
+  const areaRows = (p.areas || []).map(a => {
+    const st = _restorePlan.areas[a.area];
+    // An area an import MUST include isn't a choice — show it as settled
+    // rather than as a checkbox that silently refuses to come off.
+    const locked = a.required;
+    const modeButtons = a.modes.length < 2 ? '' : a.modes.map(m => `
+      <button class="restore-mode ${st.mode === m ? 'on' : ''}${m === 'replace' ? ' danger' : ''}"
+              ${st.enabled ? '' : 'disabled'}
+              onclick="setRestoreAreaMode('${a.area}','${m}')">${m === 'replace' ? 'Point-in-time' : 'Merge'}</button>`).join('');
+    // A v1 bundle predates boards: absent is not zero and must not read as it.
+    const inB   = a.in_bundle == null ? 'not in this bundle' : `${fmtInt(a.in_bundle)} in backup`;
+    const live  = a.live_now == null ? '' : ` · ${fmtInt(a.live_now)} now`;
+    return `
+      <div class="restore-area ${st.enabled ? '' : 'off'}">
+        <label class="restore-area-head">
+          <input type="checkbox" ${st.enabled ? 'checked' : ''} ${locked ? 'disabled' : ''}
+                 onchange="toggleRestoreArea('${a.area}', this.checked)">
+          <span><strong>${escHtml(a.label)}</strong>
+            <span class="restore-sub">${escHtml(inB)}${escHtml(live)}${locked ? ' · required for an import' : ''}</span>
+          </span>
+        </label>
+        <div class="restore-mode-row">${modeButtons}
+          ${a.modes.length < 2 ? `<span class="restore-sub">${a.modes[0] === 'replace'
+              ? 'point-in-time only' : 'merge only'}</span>` : ''}</div>
+      </div>`;
+  }).join('');
+
+  // ── Embedding choice, only when memories are actually being restored ──────
+  const mem = _restorePlan.areas.memories;
+  const embedBlock = (mem && mem.enabled) ? `
+    <div class="restore-area">
+      <div class="restore-area-head"><span><strong>Re-embedding</strong>
+        <span class="restore-sub">memories must be embedded before semantic search can find them</span></span></div>
+      <div class="restore-mode-row">
+        <button class="restore-mode ${_restorePlan.embed_memories ? 'on' : ''}"
+                onclick="setRestoreEmbed(true)">Embed during restore</button>
+        <button class="restore-mode ${_restorePlan.embed_memories ? '' : 'on'}"
+                onclick="setRestoreEmbed(false)">Restore now, embed later</button>
+      </div>
+    </div>` : '';
+
+  const chosen = Object.keys(_restorePlan.areas).filter(a => _restorePlan.areas[a].enabled);
+  const effects = chosen.map(a =>
+    p.area_effects[`${a}:${_restorePlan.areas[a].mode}`]).filter(Boolean);
+  const skipped = Object.keys(_restorePlan.areas)
+    .filter(a => !_restorePlan.areas[a].enabled)
+    .map(a => _restorePlan.areas[a].meta.label);
+  if (skipped.length) effects.push('Left completely untouched: ' + skipped.join('; ') + '.');
+  if (mem && mem.enabled) {
+    effects.push(p.embed_effects[_restorePlan.embed_memories ? 'now' : 'later']);
+  }
+
+  const target = p.creates_org
+    ? `<p class="restore-sub">No org with id <code>${escHtml(b.org_id)}</code> or slug
+       <code>${escHtml(b.org_slug)}</code> exists here yet — it will be created.</p>`
+    : `<dl class="restore-facts">
+         ${fact('Restoring into', t.org_name || t.org_slug)}
+         ${fact('Users today', fmtInt(t.user_count))}
+         ${fact('Wiki revisions today', fmtInt(t.wiki_revisions))}
+         ${fact('Recycle bin today', fmtInt(t.recycle_bin_pages))}
+       </dl>`;
+
+  const head = `<div class="restore-sub" style="margin-bottom:.5rem">
+      <strong>${escHtml(b.org_name || b.org_slug)}</strong> ·
+      taken ${escHtml((b.created_at || '').slice(0, 19).replace('T', ' '))} UTC ·
+      bundle v${escHtml(b.version)} · ${escHtml(fmtMB(b.size_bytes))} ·
+      from ${escHtml(_restoreJob.source)}
+    </div>`;
+
+  $('#restore-review-body').innerHTML = `
+    ${warns}${head}
+    <div class="restore-heading">Restore which parts?</div>
+    ${areaRows}${embedBlock}
+    <div class="restore-heading">What this will do</div>
+    ${chosen.length
+      ? `<ul class="restore-effects">${effects.map(e => `<li>${escHtml(e)}</li>`).join('')}</ul>`
+      : `<div class="restore-warn">Nothing is selected, so this restore would do
+         nothing. Pick at least one area.</div>`}
+    <div class="restore-heading">Target</div>
+    ${target}`;
+
+  const go = $('#restore-proceed');
+  if (go) {
+    go.disabled = chosen.length === 0;
+    const destructive = chosen.some(a => _restorePlan.areas[a].mode === 'replace');
+    go.textContent = destructive ? 'Proceed — point-in-time restore' : 'Proceed with restore';
+  }
+  _showRestorePane('review');
+}
+
+// ── Step 2: run it, watch it, steer it ──────────────────────────────────────
+
+async function proceedWithRestore() {
+  if (!_restoreJob || !_restorePlan) return;
+  const plan = _planToRequest();
+  if (!plan.areas.length) return;
+  // Say the destructive part out loud, naming the areas, before it happens.
+  const replacing = plan.areas.filter(a => plan.modes[a] === 'replace');
+  if (replacing.length) {
+    const names = replacing.map(a => _restorePlan.areas[a].meta.label).join('\n  • ');
+    if (!confirm('Point-in-time restore of:\n  • ' + names
+      + '\n\nThese areas will BECOME the backup. Anything in them created since '
+      + 'the backup was taken is deleted, not merged.\n\nContinue?')) return;
+  }
+  const r = await fetch(`/api/platform/restore-jobs/${_restoreJob.job_id}/start`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ plan }),
+  });
+  if (!r.ok) {
+    const d = await r.json().catch(() => ({}));
+    alert('Could not start the restore: ' + (d.detail || r.status));
+    return;
+  }
+  watchRestoreJob(_restoreJob.job_id, _restoreJob.source);
+}
+
+async function discardStagedRestore() {
+  const job = _restoreJob;
+  _restoreJob = null;
+  _restorePlan = null;
+  $('#restore-modal').classList.remove('open');
+  stopRestorePolling();
+  if (job) {
+    await fetch(`/api/platform/restore-jobs/${job.job_id}/cancel`, { method: 'POST' })
+      .catch(() => {});
+  }
+  checkActiveRestores();
+}
+
+function watchRestoreJob(jobId, source) {
+  _restoreJob = { job_id: jobId, source: source || '' };
+  $('#restore-modal-title').textContent = 'Restore in progress';
+  $('#restore-progress-source').textContent =
+    source ? `Restoring from ${source}` : '';
+  $('#restore-outcome').innerHTML = '';
+  _showRestorePane('progress');
+  stopRestorePolling();
+  pollRestoreOnce(jobId);
+  _restorePoll = setInterval(() => pollRestoreOnce(jobId), 2000);
+}
+
+async function pollRestoreOnce(jobId) {
+  let r;
+  try { r = await fetch(`/api/platform/restore-jobs/${jobId}`); }
+  catch (_) { return; }               // transient — the next tick will retry
+  if (!r.ok) {
+    stopRestorePolling();
+    $('#restore-outcome').innerHTML =
+      `<span style="color:var(--danger)">Lost track of this restore (${r.status}).
+       It may still be running — reopen the Backups panel to reattach.</span>`;
+    return;
+  }
+  renderRestoreProgress(await r.json());
+}
+
+function renderRestoreProgress(j) {
+  const pct = j.percent || 0;
+  const fill = $('#restore-bar-fill');
+  fill.style.width = Math.max(2, pct) + '%';
+  fill.className = 'restore-bar-fill' +
+    (j.status === 'done' ? ' done'
+      : j.status === 'error' ? ' failed'
+      : j.status === 'cancelled' ? ' failed'
+      : j.status === 'paused' ? ' paused' : '');
+
+  const eta = fmtDur(j.eta_seconds);
+  const stats = [`<strong style="color:var(--text)">${pct.toFixed(1)}%</strong>`];
+  if (j.total) stats.push(`${fmtInt(j.processed)} / ${fmtInt(j.total)}`);
+  // Only while it is actually moving: an ETA on a paused job counts down
+  // against a clock that has stopped.
+  if (eta && j.status === 'running') stats.push(`≈${eta} left`);
+  if (j.status === 'paused') stats.push('<span style="color:var(--warning)">paused</span>');
+  if (j.status === 'cancelling') stats.push('<span style="color:var(--warning)">cancelling…</span>');
+  // Each in its own box so the row's flex gap actually separates them.
+  $('#restore-stats').innerHTML = stats.map(s => `<span>${s}</span>`).join('');
+
+  const done = new Set(j.phases_done || []);
+  $('#restore-phases').innerHTML = RESTORE_PHASES.map(([name, label]) => {
+    const cls = done.has(name) ? 'done' : (j.phase === name ? 'active' : 'todo');
+    const count = (j.phase === name && j.total)
+      ? ` <span style="color:var(--muted)">(${fmtInt(j.processed)}/${fmtInt(j.total)})</span>` : '';
+    return `<li class="${cls}">${escHtml(label)}${count}</li>`;
+  }).join('');
+
+  renderRestoreControls(j);
+  renderRestoreOutcome(j);
+}
+
+function renderRestoreControls(j) {
+  const wrap = $('#restore-controls');
+  const running = ['running', 'paused', 'pausing', 'cancelling', 'queued'].includes(j.status);
+  if (!running) {
+    wrap.innerHTML = `<button class="btn secondary" onclick="closeRestoreModal()">Close</button>`;
+    return;
+  }
+  const buttons = [];
+  if (j.status === 'paused') {
+    buttons.push(`<button class="btn" onclick="restoreControl('resume')">Resume</button>`);
+  } else if (j.status === 'running') {
+    buttons.push(`<button class="btn secondary" onclick="restoreControl('pause')">Pause</button>`);
+  }
+  if (j.status !== 'cancelling') {
+    buttons.push(`<button class="btn danger" onclick="cancelRunningRestore()">Cancel restore</button>`);
+  }
+  buttons.push(`<button class="btn secondary" onclick="closeRestoreModal()">Close — keeps running</button>`);
+  wrap.innerHTML = buttons.join('');
+}
+
+function renderRestoreOutcome(j) {
+  const el = $('#restore-outcome');
+  if (j.status === 'done') {
+    stopRestorePolling();
+    const d = j.result || {};
+    const done = [];
+    if (d.memories_restored) done.push(`${fmtInt(d.memories_restored)} memories`);
+    if (d.cards_restored)    done.push(`${fmtInt(d.cards_restored)} cards`);
+    if (d.wiki_files_restored) done.push(`${fmtInt(d.wiki_files_restored)} wiki pages`);
+    // What a point-in-time restore DELETED is the number an operator most
+    // needs to see, so it is reported beside what it put back, not buried.
+    const removed = [];
+    if (d.wiki_files_removed) removed.push(`${fmtInt(d.wiki_files_removed)} wiki pages`);
+    if (d.memories_cleared)   removed.push(`${fmtInt(d.memories_cleared)} memories`);
+
+    el.innerHTML =
+      `<span style="color:var(--success)">Restored ${done.length ? done.join(', ') : 'nothing — no matching data in the bundle'}.</span>`
+      + (removed.length
+          ? `<div class="restore-sub" style="margin-top:.3rem">Point-in-time restore removed
+             ${escHtml(removed.join(' and '))} that were not in the backup.</div>` : '')
+      + `<div id="restore-pending-embeds"></div>`;
+    loadOrgBackups().catch(() => {});
+    loadOrgs().catch(() => {});
+    // Deferred embedding leaves a debt. Show it, and the way to pay it.
+    if (d.embeddings_pending) refreshPendingEmbeddings(j.org_id);
+    return;
+  }
+  if (j.status === 'cancelled' || j.status === 'error') {
+    stopRestorePolling();
+    el.innerHTML = `<span style="color:var(--danger)">${escHtml(j.error || 'Restore failed.')}</span>`;
+    loadOrgBackups().catch(() => {});
+    return;
+  }
+  if (j.status === 'paused') {
+    el.innerHTML = `<span class="restore-sub">Paused between items — work already
+      applied stays applied. Resume whenever the machine is free.</span>`;
+    return;
+  }
+  el.innerHTML = '';
+}
+
+async function restoreControl(action) {
+  if (!_restoreJob) return;
+  const r = await fetch(`/api/platform/restore-jobs/${_restoreJob.job_id}/${action}`, { method: 'POST' });
+  if (r.ok) renderRestoreProgress(await r.json());
+  else {
+    const d = await r.json().catch(() => ({}));
+    alert(`Could not ${action} the restore: ` + (d.detail || r.status));
+  }
+}
+
+async function cancelRunningRestore() {
+  if (!confirm('Cancel this restore?\n\nIt stops at the next item. Anything already '
+             + 'written stays written — if the database phase has finished, the org '
+             + 'will be left PARTIALLY restored and you should re-run the restore.')) return;
+  await restoreControl('cancel');
+}
+
+// ── The debt a deferred restore leaves ──────────────────────────────────────
+// Memories restored without embeddings are readable but invisible to semantic
+// search. That is a fine trade to make deliberately and a terrible one to
+// forget about, so it stays on screen with the fix next to it.
+
+let _pendingEmbedPoll = null;
+
+async function refreshPendingEmbeddings(orgId, hostId = 'restore-pending-embeds') {
+  const host = document.getElementById(hostId);
+  if (!host || !orgId) return;
+  let data;
+  try {
+    const r = await fetch(`/api/platform/orgs/${orgId}/pending-embeddings`);
+    if (!r.ok) return;
+    data = await r.json();
+  } catch (_) { return; }
+
+  const run = data.run || {};
+  const running = run.state === 'running';
+  if (!data.pending && !running) {
+    if (_pendingEmbedPoll) { clearInterval(_pendingEmbedPoll); _pendingEmbedPoll = null; }
+    host.innerHTML = `<div class="restore-sub" style="margin-top:.5rem;color:var(--success)">
+      All restored memories are embedded and searchable.</div>`;
+    return;
+  }
+  host.innerHTML = `
+    <div class="restore-warn" style="margin-top:.6rem">
+      <strong>${fmtInt(data.pending)} memories are restored but not embedded.</strong>
+      They are readable now, but semantic search will not find them until the
+      embedding pass runs. You can start it here, or leave it and point the
+      deployment at a faster embedding backend first.
+      <div style="margin-top:.5rem;display:flex;gap:.5rem;align-items:center">
+        ${running
+          ? `<span>Embedding… ${fmtInt(run.processed)} / ${fmtInt(run.total)}</span>`
+          : `<button class="btn" onclick="startPendingEmbeddings('${escHtml(orgId)}','${escHtml(hostId)}')">Embed now</button>`}
+        ${run.failed ? `<span style="color:var(--danger)">${fmtInt(run.failed)} failed</span>` : ''}
+      </div>
+    </div>`;
+  if (running && !_pendingEmbedPoll) {
+    _pendingEmbedPoll = setInterval(() => refreshPendingEmbeddings(orgId, hostId), 3000);
+  }
+}
+
+async function startPendingEmbeddings(orgId, hostId) {
+  const r = await fetch(`/api/platform/orgs/${orgId}/pending-embeddings`, { method: 'POST' });
+  if (!r.ok) {
+    const d = await r.json().catch(() => ({}));
+    alert('Could not start embedding: ' + (d.detail || r.status));
+    return;
+  }
+  refreshPendingEmbeddings(orgId, hostId);
+}
+
+// ── Reattaching ─────────────────────────────────────────────────────────────
+// The job id the tab was handed does not survive a refresh; the org does.
+
+async function reattachRestore(orgId) {
+  try {
+    const r = await fetch(`/api/platform/restore-jobs?active=true&org_id=${encodeURIComponent(orgId)}&limit=1`);
+    if (!r.ok) return false;
+    const { jobs } = await r.json();
+    const job = (jobs || [])[0];
+    if (!job || job.status === 'staged') return false;
+    watchRestoreJob(job.job_id, job.source_label || '');
+    return true;
+  } catch (_) { return false; }
+}
+
+async function checkActiveRestores() {
+  const b = document.getElementById('restore-banner');
+  if (!b) return;
+  try {
+    const r = await fetch('/api/platform/restore-jobs?active=true&limit=5');
+    if (!r.ok) { b.style.display = 'none'; return; }
+    const jobs = ((await r.json()).jobs || []).filter(j => j.status !== 'staged');
+    if (!jobs.length) { b.style.display = 'none'; return; }
+    const j = jobs[0];
+    b.innerHTML = `A restore of <strong>${escHtml(j.org_slug || j.org_id)}</strong> is
+      ${escHtml(j.status)} — ${(j.percent || 0).toFixed(0)}% ·
+      ${escHtml(j.phase_label || j.phase || '')}. <u>Open it</u>`
+      + (jobs.length > 1 ? ` <span style="opacity:.7">(+${jobs.length - 1} more)</span>` : '');
+    b.onclick = () => watchRestoreJob(j.job_id, j.source_label || '');
+    b.style.display = '';
+  } catch (_) { b.style.display = 'none'; }
+}
+
+// ── Entry points ────────────────────────────────────────────────────────────
+
+async function restoreOrgBackup(backupId) {
+  const fd = new FormData();
+  fd.append('backup_id', backupId);
+  const pc = await askPasscode('Backup passcode (leave blank to use the org’s configured passcode):');
+  if (pc) fd.append('passcode', pc);
+  await stageRestore(`/api/platform/orgs/${_backupOrgId}/restore-preview`, fd, backupId);
+}
+
+async function handleRestoreUpload(evt) {
+  const file = evt.target.files[0];
+  if (!file) return;
+  evt.target.value = '';              // allow re-selecting the same file later
+  const fd = new FormData();
+  fd.append('file', file);
+  const pc = await askPasscode('Backup passcode (required for encrypted backups):');
+  if (pc) fd.append('passcode', pc);
+  await stageRestore(`/api/platform/orgs/${_backupOrgId}/restore-preview`, fd, file.name);
+}
+
+async function handleImportOrgUpload(evt) {
+  const file = evt.target.files[0];
+  if (!file) return;
+  evt.target.value = '';
+  const fd = new FormData();
+  fd.append('file', file);
+  const pc = await askPasscode('Backup passcode (required for encrypted backups):');
+  if (pc) fd.append('passcode', pc);
+  await stageRestore('/api/platform/orgs/import-preview', fd, file.name);
+}
+
+async function checkPlatformBackupBanner() {
+  try {
+    const r = await fetch('/api/platform/backup-status');
+    if (!r.ok) return;
+    const s = await r.json();
+    const b = document.getElementById('platform-backup-banner');
+    if (!s.global_passcode_set) {
+      b.innerHTML = '⚠ <strong>Backups are not configured.</strong> No global backup passcode is set, '
+        + 'so org backups cannot run (encryption is required). Open '
+        + '<strong>Configure backup targets (S3 / SSH)</strong> to set one.';
+      b.style.display = '';
+    } else {
+      b.style.display = 'none';
+    }
+  } catch (_) {}
+}
+
+loadOrgs();
+loadAdmins();
+checkPlatformBackupBanner();
+checkActiveRestores();
+// A restore runs for minutes without anyone watching, so the banner keeps
+// looking even when no modal is open.
+setInterval(() => {
+  if (!$('#restore-modal').classList.contains('open')) checkActiveRestores();
+}, 15000);
+</script>
+</body>
+</html>

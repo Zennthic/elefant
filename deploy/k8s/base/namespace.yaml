@@ -1,0 +1,15 @@
+# Applied SEPARATELY, not from kustomization.yaml.
+#
+# A Namespace is a cluster-scoped object, so a deploy credential that is admin
+# only inside one namespace cannot create it. Keeping it out of the kustomize
+# build means `kubectl apply -k` works with exactly that credential, which is
+# what CI uses. Create it once, by hand or as a cluster admin:
+#
+#   kubectl apply -f deploy/k8s/base/namespace.yaml
+#
+# On a cluster with a pull-secret replicator, creating the namespace is also
+# what makes the replicator push its copy in.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: elefant

@@ -1,0 +1,40 @@
+# Python build artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# IDE / editor scratch
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Local secrets / env overrides
+.env
+.env.local
+*.local.env
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Key material — never commit private keys or a keygen output dir. Block
+# ./_secret_keys and any stray PEM/key files outright.
+_secret_keys/
+*.pem
+*.key
+*.priv.pem
+
+# Editor/source backups
+*.backup
+*.bak
+
+# Local coding-agent configuration is personal, never committed
+.claude/
+CLAUDE.md

@@ -1,0 +1,27 @@
+# Traefik (what k3s ships), serving a wildcard certificate Traefik already
+# holds. Two annotations, and NO spec.tls.
+#
+# Adding a spec.tls block makes Traefik look for a per-host certificate Secret
+# that does not exist, and it serves its own self-signed default instead of the
+# wildcard. The symptom is a browser warning on a host that is supposed to
+# have a real certificate. For other controllers, start from ../../examples/.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: elefant
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+spec:
+  rules:
+    # CHANGE THIS. Must match ELEFANT_PUBLIC_DOMAIN in kustomization.yaml.
+    - host: elefant.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: nginx
+                port:
+                  number: 80

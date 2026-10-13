@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Elefant — Org Admin Guide</title>
+<style>
+  /* ── Reset & base ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --indigo:      #3f51b5;
+    --indigo-dark: #283593;
+    --indigo-mid:  #5c6bc0;
+    --indigo-pale: #e8eaf6;
+    --indigo-xpale:#f3f4fd;
+    --text:        #1a1a2e;
+    --muted:       #555870;
+    --border:      #dde0ef;
+    --surface:     #ffffff;
+    --danger:      #c62828;
+    --success:     #2e7d32;
+    --amber:       #f57f17;
+    --font:        "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --mono:        "JetBrains Mono", "Fira Code", "Courier New", monospace;
+  }
+
+  html { font-size: 10.5pt; }
+
+  body {
+    font-family: var(--font);
+    color: var(--text);
+    background: #fff;
+    line-height: 1.65;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 0 0 60px;
+  }
+
+  /* ── Cover / header ── */
+  .cover {
+    background: linear-gradient(135deg, var(--indigo-dark) 0%, var(--indigo) 60%, var(--indigo-mid) 100%);
+    color: #fff;
+    padding: 56px 56px 48px;
+    position: relative;
+    overflow: hidden;
+  }
+  .cover::after {
+    content: "";
+    position: absolute;
+    right: -40px; top: -40px;
+    width: 260px; height: 260px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.05);
+  }
+  .cover-logo {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 40px;
+  }
+  .cover-logo svg { width: 180px; height: auto; color: #fff; }
+  .cover-doc-type {
+    font-size: 9pt;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    opacity: 0.7;
+    margin-bottom: 10px;
+  }
+  .cover h1 {
+    font-size: 28pt;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    line-height: 1.15;
+    margin-bottom: 16px;
+  }
+  .cover-sub {
+    font-size: 11pt;
+    opacity: 0.85;
+    max-width: 480px;
+    line-height: 1.5;
+  }
+  .cover-meta {
+    margin-top: 36px;
+    font-size: 8.5pt;
+    opacity: 0.6;
+    letter-spacing: 0.5px;
+  }
+
+  /* ── TOC ── */
+  .toc-section {
+    background: var(--indigo-xpale);
+    border-bottom: 1px solid var(--border);
+    padding: 36px 56px;
+  }
+  .toc-title {
+    font-size: 9pt;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--indigo);
+    margin-bottom: 18px;
+  }
+  .toc-list { list-style: none; }
+  .toc-list li {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    padding: 3px 0;
+    font-size: 10pt;
+  }
+  .toc-list .toc-num { color: var(--indigo); font-weight: 700; min-width: 22px; }
+  .toc-list .toc-dots { flex: 1; border-bottom: 1px dotted var(--border); margin: 0 6px; }
+
+  /* ── Page content ── */
+  .page { padding: 44px 56px; }
+
+  /* ── Section headings ── */
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 22px;
+    padding-top: 14px;
+  }
+  .section-num {
+    background: var(--indigo);
+    color: #fff;
+    font-size: 9pt;
+    font-weight: 700;
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  h2 {
+    font-size: 16pt;
+    font-weight: 700;
+    color: var(--indigo-dark);
+    letter-spacing: -0.2px;
+  }
+  h3 {
+    font-size: 11.5pt;
+    font-weight: 700;
+    color: var(--indigo);
+    margin: 24px 0 10px;
+    padding-left: 12px;
+    border-left: 3px solid var(--indigo-pale);
+  }
+  h4 {
+    font-size: 10pt;
+    font-weight: 700;
+    color: var(--text);
+    margin: 16px 0 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
+
+  /* ── Divider ── */
+  .section-divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 42px 0;
+  }
+
+  /* ── Body text ── */
+  p { margin-bottom: 12px; }
+
+  /* ── Lists ── */
+  ul, ol {
+    margin: 10px 0 14px 20px;
+  }
+  li { margin-bottom: 5px; }
+  li strong { color: var(--indigo-dark); }
+
+  /* ── Callout boxes ── */
+  .callout {
+    border-radius: 6px;
+    padding: 14px 18px;
+    margin: 16px 0;
+    font-size: 9.5pt;
+    line-height: 1.55;
+  }
+  .callout-title {
+    font-weight: 700;
+    font-size: 9pt;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 5px;
+  }
+  .callout.info    { background: var(--indigo-xpale); border-left: 4px solid var(--indigo); }
+  .callout.info .callout-title { color: var(--indigo); }
+  .callout.tip     { background: #f1f8e9; border-left: 4px solid var(--success); }
+  .callout.tip .callout-title  { color: var(--success); }
+  .callout.warning { background: #fff8e1; border-left: 4px solid var(--amber); }
+  .callout.warning .callout-title { color: var(--amber); }
+
+  /* ── Code ── */
+  code {
+    font-family: var(--mono);
+    font-size: 8.5pt;
+    background: var(--indigo-xpale);
+    color: var(--indigo-dark);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+  pre {
+    font-family: var(--mono);
+    font-size: 8.5pt;
+    background: #f5f5f5;
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--indigo-mid);
+    border-radius: 4px;
+    padding: 14px 16px;
+    margin: 14px 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.55;
+    color: #1a1a2e;
+  }
+
+  /* ── Step-by-step ── */
+  .steps { list-style: none; margin: 14px 0; }
+  .steps li {
+    display: flex;
+    gap: 14px;
+    margin-bottom: 12px;
+    align-items: flex-start;
+  }
+  .step-num {
+    background: var(--indigo-pale);
+    color: var(--indigo-dark);
+    font-weight: 700;
+    font-size: 9pt;
+    min-width: 26px; height: 26px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .step-body { flex: 1; }
+
+  /* ── Table ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 14px 0 20px;
+    font-size: 9.5pt;
+  }
+  th {
+    background: var(--indigo);
+    color: #fff;
+    text-align: left;
+    padding: 9px 12px;
+    font-size: 8.5pt;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+  td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  tr:nth-child(even) td { background: var(--indigo-xpale); }
+
+  /* ── Badge row ── */
+  .role-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 8pt;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+  .role-platform { background: #ede7f6; color: #4527a0; }
+  .role-org      { background: #e3f2fd; color: #0d47a1; }
+  .role-user     { background: #f3e5f5; color: #6a1b9a; }
+
+  /* ── Permission grid ── */
+  .perm-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 14px 0;
+  }
+  .perm-card {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 14px;
+    font-size: 9.5pt;
+  }
+  .perm-card strong { display: block; color: var(--indigo); margin-bottom: 4px; }
+
+  /* ── Footer ── */
+  .footer {
+    background: var(--indigo-dark);
+    color: rgba(255,255,255,0.7);
+    padding: 20px 56px;
+    font-size: 8.5pt;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 60px;
+  }
+  .footer a { color: rgba(255,255,255,0.9); }
+
+  /* ── Print ── */
+  @media print {
+    html { font-size: 10pt; }
+    body { max-width: none; padding: 0; }
+    .cover { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .callout, .step-num, th, .section-num, .footer { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    h2, h3 { page-break-after: avoid; }
+    pre, table { page-break-inside: avoid; }
+    .page-break { page-break-before: always; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Cover ── -->
+<div class="cover">
+  <div class="cover-logo">
+    <svg viewBox="0 0 400 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <g transform="translate(10, 38)">
+        <path d="M 48 18 Q 51 15 54 21 Q 52.5 22.5 49.5 21 Q 48 19.5 48 18 Z" fill="currentColor"/>
+        <path d="M 22.5 27 Q 21 33 22.5 42 L 19.5 43.5 Q 18 34.5 19.5 27 Z" fill="currentColor"/>
+        <path d="M 30 39 L 28.5 54 L 31.5 54 L 31.5 39 Z" fill="currentColor"/>
+        <path d="M 39 39 L 39 54 L 42 54 L 40.5 39 Z" fill="currentColor"/>
+        <ellipse cx="33" cy="30" rx="16.5" ry="15" fill="currentColor" fill-opacity="0.15" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M 42 21 Q 43.5 24 40.5 28.5" fill="none" stroke="currentColor" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="39" cy="25.5" r="1.2" fill="currentColor"/>
+      </g>
+      <text x="70" y="68" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="48" font-weight="700" fill="currentColor" letter-spacing="-0.5">Elefant</text>
+    </svg>
+  </div>
+  <div class="cover-doc-type">Org Admin Guide</div>
+  <h1>Managing Your<br>Organisation</h1>
+  <div class="cover-sub">Everything an Org Admin needs to invite users, structure teams and groups, manage permissions, and keep their Elefant workspace running smoothly.</div>
+  <div class="cover-meta">For Org Admins</div>
+</div>
+
+<!-- ── TOC ── -->
+<div class="toc-section">
+  <div class="toc-title">Contents</div>
+  <ol class="toc-list">
+    <li><span class="toc-num">1</span> What is Elefant? <span class="toc-dots"></span></li>
+    <li><span class="toc-num">2</span> Your Organisation at a Glance <span class="toc-dots"></span></li>
+    <li><span class="toc-num">3</span> User Management &amp; Onboarding <span class="toc-dots"></span></li>
+    <li><span class="toc-num">4</span> Teams <span class="toc-dots"></span></li>
+    <li><span class="toc-num">5</span> Groups &amp; Permissions <span class="toc-dots"></span></li>
+    <li><span class="toc-num">6</span> API Tokens <span class="toc-dots"></span></li>
+    <li><span class="toc-num">7</span> The Board <span class="toc-dots"></span></li>
+    <li><span class="toc-num">8</span> Getting Help <span class="toc-dots"></span></li>
+  </ol>
+</div>
+
+<!-- ── Section 1 ── -->
+<div class="page">
+
+  <div class="section-header">
+    <div class="section-num">1</div>
+    <h2>What is Elefant?</h2>
+  </div>
+
+  <p>Elefant is a <strong>knowledge base and AI memory platform</strong> that gives your organisation a private, structured place to store what it knows — written documentation in the Wiki, and structured facts in the Memory layer that your AI assistants can search, read, and add to in real time.</p>
+
+  <p>Unlike cloud AI tools that store your context on third-party servers, <strong>Elefant keeps your data under your control</strong>. Every document, every memory, and every conversation context lives on infrastructure you own. Elefant connects to AI assistants (Claude, Cursor, and others) over the standard <strong>Model Context Protocol (MCP)</strong> — an open spec, not a proprietary lock-in.</p>
+
+  <div class="perm-grid">
+    <div class="perm-card">
+      <strong>📖 Wiki</strong>
+      Markdown documents organised in folders. Your team's SOPs, runbooks, decisions, reference material. Readable and searchable by your AI assistants.
+    </div>
+    <div class="perm-card">
+      <strong>🧠 Memories</strong>
+      Structured facts, decisions, and preferences. Your AI assistants can search and add memories in real time — building persistent context across sessions.
+    </div>
+    <div class="perm-card">
+      <strong>🔒 Data Ownership</strong>
+      Your content never leaves your infrastructure. No vendor has access to your wiki or memories. You can export and move everything at any time.
+    </div>
+    <div class="perm-card">
+      <strong>🔌 Platform-Agnostic</strong>
+      Connects via MCP — the open standard supported by Claude, Cursor, Windsurf, and others. Change your AI provider without losing your data.
+    </div>
+  </div>
+
+  <hr class="section-divider">
+
+  <!-- Section 2 -->
+  <div class="section-header">
+    <div class="section-num">2</div>
+    <h2>Your Organisation at a Glance</h2>
+  </div>
+
+  <p>Your Elefant workspace is structured as an <strong>Organisation (Org)</strong>. As an Org Admin, you have full control over users, teams, groups, and the settings for your Org. You do not have access to other organisations on the platform.</p>
+
+  <h3>Role Hierarchy</h3>
+
+  <table>
+    <tr><th>Role</th><th>What they can do</th></tr>
+    <tr>
+      <td><span class="role-badge role-platform">Platform Admin</span></td>
+      <td>Manages the platform itself — creates orgs, handles billing, cannot see your content.</td>
+    </tr>
+    <tr>
+      <td><span class="role-badge role-org">Org Admin</span></td>
+      <td><strong>That's you.</strong> Manages users, teams, groups, API tokens, and wiki spaces within your org. Full access to your org's content.</td>
+    </tr>
+    <tr>
+      <td><span class="role-badge role-user">User</span></td>
+      <td>Can read and write wiki content and memories within their allowed spaces. Cannot manage other users or settings.</td>
+    </tr>
+  </table>
+
+  <h3>Admin Console</h3>
+  <p>Your admin console is at <code>https://your-domain.com/editor/admin.html</code>. You'll find all management tools in the tabs along the top: Users, Teams, Groups, Invites, API Tokens, Wiki Spaces, and Settings.</p>
+
+  <div class="callout info">
+    <div class="callout-title">Tip</div>
+    The regular Wiki &amp; Memories view at <code>https://your-domain.com/</code> is where your users spend most of their time. The Admin Console is a separate page for management tasks only.
+  </div>
+
+  <hr class="section-divider">
+
+  <!-- Section 3 -->
+  <div class="section-header">
+    <div class="section-num">3</div>
+    <h2>User Management &amp; Onboarding</h2>
+  </div>
+
+  <p>All users join Elefant via a <strong>one-time invite link</strong> that you generate from the Admin Console. There is no self-registration; every user must be explicitly invited.</p>
+
+  <h3>Inviting a New User</h3>
+  <ol class="steps">
+    <li><span class="step-num">1</span><div class="step-body">Open the Admin Console → <strong>Invites</strong> tab.</div></li>
+    <li><span class="step-num">2</span><div class="step-body">Click <strong>Create Invite</strong>. Enter the new user's email address and select an initial Team and/or Group (optional — you can adjust later).</div></li>
+    <li><span class="step-num">3</span><div class="step-body">Copy the invite URL that appears. Send it to the new user via email, Slack, or any other channel.</div></li>
+    <li><span class="step-num">4</span><div class="step-body">The user opens the link, sets their password, and is taken through MFA enrolment on first login.</div></li>
+    <li><span class="step-num">5</span><div class="step-body">Once they complete onboarding, they appear in the <strong>Users</strong> tab. You can assign them to teams and groups from there.</div></li>
+  </ol>
+
+  <div class="callout warning">
+    <div class="callout-title">Invite link expiry</div>
+    Invite links are one-time use and expire after 7 days. If a user hasn't accepted within that window, generate a new invite. Old invite links are invalidated automatically.
+  </div>
+
+  <h3>Managing Existing Users</h3>
+  <p>In the <strong>Users</strong> tab you can:</p>
+  <ul>
+    <li>View all users and their current role, team, and group memberships</li>
+    <li>Promote a user to Org Admin or demote them back to User</li>
+    <li>Assign or remove team/group memberships</li>
+    <li>Suspend a user (they cannot log in; their content is preserved)</li>
+    <li>Delete a user (content is preserved; action is irreversible)</li>
+  </ul>
+
+  <h3>MFA Policy</h3>
+  <p>Your org's MFA policy is either <strong>enforced</strong> or <strong>optional</strong>. When it is enforced, every user must set up a TOTP authenticator app on first login before they can continue. When it is optional, org and team admins are shown the setup page on their first login with a <strong>Skip for now</strong> option, other users are not prompted, and anyone can set up MFA later from their profile. A user who has set up MFA is always asked for a code when they log in, whatever the policy.</p>
+
+  <hr class="section-divider">
+
+  <!-- Section 4 -->
+  <div class="section-header">
+    <div class="section-num">4</div>
+    <h2>Teams</h2>
+  </div>
+
+  <p>A <strong>Team</strong> is a named group of users that reflects how your organisation is structured — for example, <em>Engineering</em>, <em>Marketing</em>, or <em>Operations</em>. Teams are primarily organisational labels: they make it easy to see at a glance who belongs where, and they can be used as the basis for wiki space access rules.</p>
+
+  <h3>Creating a Team</h3>
+  <ol class="steps">
+    <li><span class="step-num">1</span><div class="step-body">Admin Console → <strong>Teams</strong> tab → <strong>Create Team</strong>.</div></li>
+    <li><span class="step-num">2</span><div class="step-body">Enter a name (e.g., <code>engineering</code>) and an optional description.</div></li>
+    <li><span class="step-num">3</span><div class="step-body">Add members by selecting from the list of existing users.</div></li>
+  </ol>
+
+  <h3>Assigning Users to Teams</h3>
+  <p>You can add or remove a user from a team from either the <strong>Users</strong> tab (edit a user → Teams section) or the <strong>Teams</strong> tab (edit a team → Members section). A user can belong to multiple teams.</p>
+
+  <div class="callout info">
+    <div class="callout-title">Teams vs Groups</div>
+    Teams are structural labels (who are you?). Groups control what you can access. Typically you'll assign users to both: a Team for their department and one or more Groups that grant the right wiki space access.
+  </div>
+
+  <hr class="section-divider">
+
+  <!-- Section 5 -->
+  <div class="section-header">
+    <div class="section-num">5</div>
+    <h2>Groups &amp; Permissions</h2>
+  </div>
+
+  <p>A <strong>Group</strong> is a permission bundle. Each group is associated with one or more <strong>Wiki Spaces</strong> (folder-level access controls) and defines what members can do in those spaces.</p>
+
+  <h3>Creating a Group</h3>
+  <ol class="steps">
+    <li><span class="step-num">1</span><div class="step-body">Admin Console → <strong>Groups</strong> tab → <strong>Create Group</strong>.</div></li>
+    <li><span class="step-num">2</span><div class="step-body">Give it a descriptive name, e.g., <code>engineering-readwrite</code> or <code>all-readonly</code>.</div></li>
+    <li><span class="step-num">3</span><div class="step-body">Add users or entire teams to the group.</div></li>
+    <li><span class="step-num">4</span><div class="step-body">Assign the group to one or more Wiki Spaces with the desired access level.</div></li>
+  </ol>
+
+  <h3>Wiki Space ACLs</h3>
+  <p>Wiki Spaces are top-level folders in the file tree. Each space can have its own access rules:</p>
+
+  <table>
+    <tr><th>Access Level</th><th>What members can do</th></tr>
+    <tr><td><strong>Read</strong></td><td>View and search documents in this space.</td></tr>
+    <tr><td><strong>Write</strong></td><td>Create, edit, and delete documents in this space.</td></tr>
+    <tr><td><strong>Admin</strong></td><td>All of the above, plus manage the space itself.</td></tr>
+  </table>
+
+  <p>Navigate to Admin Console → <strong>Wiki Space ACLs</strong> to configure which groups have access to which spaces.</p>
+
+  <h3>Recommended Starting Configuration</h3>
+  <ul>
+    <li>Create an <code>all-users</code> group containing everyone → give it <strong>Read</strong> access to the main wiki space.</li>
+    <li>Create a <code>contributors</code> group for active editors → give it <strong>Write</strong> access.</li>
+    <li>Create department-specific groups for spaces that contain sensitive departmental content.</li>
+  </ul>
+
+  <hr class="section-divider">
+
+  <!-- Section 6 -->
+  <div class="section-header">
+    <div class="section-num">6</div>
+    <h2>API Tokens</h2>
+  </div>
+
+  <p>API Tokens are how your users' AI assistants authenticate to Elefant's MCP server. Each user creates their own personal tokens in <strong>My Settings</strong> → <strong>API tokens</strong>, one for each client. Users do not share tokens. Clients that support OAuth, such as claude.ai and the Claude mobile apps, need no token; their sessions appear in <strong>My Settings</strong> → <strong>OAuth sessions</strong>.</p>
+
+  <h3>Token Permissions</h3>
+  <table>
+    <tr><th>Permission</th><th>Grants</th><th>Default</th></tr>
+    <tr><td><code>memory_read</code></td><td>Search and list memories</td><td>✅ On</td></tr>
+    <tr><td><code>memory_write</code></td><td>Add, update and delete memories</td><td>❌ Off</td></tr>
+    <tr><td><code>wiki_read</code></td><td>Search and read wiki pages</td><td>✅ On</td></tr>
+    <tr><td><code>wiki_write</code></td><td>Create and update pages, only inside the org's AI folder (<code>AI/</code> by default)</td><td>✅ On</td></tr>
+    <tr><td><code>board_read</code></td><td>List cards and columns on the Board</td><td>✅ On</td></tr>
+    <tr><td><code>board_write</code></td><td>Add, move, edit, comment on and close cards</td><td>❌ Off</td></tr>
+  </table>
+
+  <p>The defaults are those of the <strong>API tokens</strong> form in <strong>My Settings</strong>. For most users, also turn on <strong>memory_write</strong>, so that the assistant can capture, and <strong>board_write</strong> if the assistant should file cards. The <em>Connect your AI client</em> guide (<code>docs/connect/README.md</code> in the Elefant repository) has the setup for each client.</p>
+
+  <div class="callout warning">
+    <div class="callout-title">Tokens are shown once</div>
+    A token value is shown <strong>once</strong> at creation and never retrievable again. Instruct users to copy it into their Claude Desktop config immediately. If a token is lost, they can delete it and create a new one.
+  </div>
+
+  <hr class="section-divider">
+
+  <!-- Section 7 -->
+  <div class="section-header">
+    <div class="section-num">7</div>
+    <h2>The Board</h2>
+  </div>
+
+  <p>The <strong>Board</strong> tab is a Kanban board for your org's work and ideas. People and AI assistants share it: a person drags a card in the browser, and an assistant moves the same card with the MCP <code>card_*</code> tools. The board updates live for everyone who has it open.</p>
+
+  <h3>Setting it up</h3>
+  <ul>
+    <li><strong>Columns</strong> belong to the org. Name them for the way your team works, for example <em>Ideas</em>, <em>Up Next</em>, <em>In Progress</em>, <em>Review</em> and <em>Done</em>. Use <strong>Add column</strong> on the board, and drag columns to reorder them.</li>
+    <li><strong>Labels</strong> are free text, for example <code>bug</code> or a sprint name. Agree on a short list, because people and assistants filter by label.</li>
+    <li><strong>A card's repository field</strong> records the GitHub repository the work belongs to, so one board can serve several projects.</li>
+  </ul>
+
+  <h3>Cards</h3>
+  <p>A card has a title, a description, comments, attachments, labels, the people on it, and links: to other cards (related, <em>blocks</em> or <em>blocked by</em>) and to wiki pages. Closing a card keeps it, and it can be reopened from the Closed column. Cards are not deleted.</p>
+
+  <h3>Assistants on the board</h3>
+  <p>An assistant needs <code>board_read</code> to see the board and <code>board_write</code> to change it. With <code>board_write</code>, an assistant files ideas that the user is not building yet as cards, and files a card when the user says <em>"note to self"</em>. An assistant that works cards unattended picks the next card whose blockers are done.</p>
+
+  <hr class="section-divider">
+
+  <!-- Section 8 -->
+  <div class="section-header">
+    <div class="section-num">8</div>
+    <h2>Getting Help</h2>
+  </div>
+
+  <p>If something isn't working or you have questions about your org setup:</p>
+
+  <ul>
+    <li><strong>Getting help:</strong> ask whoever runs your Elefant, or ask the community in the project's GitHub Discussions. Include a description of the issue and any error messages you see.</li>
+    <li><strong>User guide:</strong> share the companion <em>Elefant User Guide</em> with your team members for help with day-to-day use.</li>
+    <li><strong>Data export:</strong> at any time you can export your wiki (Settings → Wiki Backup) and your memories (Settings → Memory Backup) as portable files. Your data is never locked in.</li>
+  </ul>
+
+  <div class="callout tip">
+    <div class="callout-title">Feedback welcome</div>
+    Elefant is open source and actively developed. If you hit rough edges, please open an issue — feedback helps prioritise what to improve next.
+  </div>
+
+</div>
+
+<!-- ── Footer ── -->
+<div class="footer">
+  <span>Elefant · Org Admin Guide</span>
+  <span>Open source (Apache-2.0) · © Zennthic LLC</span>
+</div>
+
+</body>
+</html>

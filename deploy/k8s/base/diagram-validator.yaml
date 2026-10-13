@@ -1,0 +1,95 @@
+# Parses Mermaid for the MCP diagram tools, so a diagram Mermaid rejects is
+# refused with its line number rather than saved. No browser: plain Node.
+# Not optional in the sense the renderer is: without it (and without the
+# renderer) the diagram tools refuse every write, unless the MCP server's
+# DIAGRAM_ALLOW_UNVALIDATED is "true".
+#
+# Diagram source is untrusted input, so the pod is locked down: non-root,
+# read-only root filesystem, no capabilities, and the NetworkPolicy below lets
+# only the MCP server in and nothing out. The service's own notes on
+# containment are at the top of diagram-validator/server.mjs.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: diagram-validator
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: diagram-validator
+  template:
+    metadata:
+      labels:
+        app: diagram-validator
+    spec:
+      enableServiceLinks: false
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: diagram-validator
+          image: ghcr.io/zennthic/elefant/diagram-validator
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          ports:
+            - name: http
+              containerPort: 8005
+          env:
+            - name: INTERNAL_SERVICE_TOKEN
+              valueFrom:
+                secretKeyRef: {name: elefant-secrets, key: ELEFANT_INTERNAL_SERVICE_TOKEN}
+          # /health does no parsing, so neither probe waits on one.
+          livenessProbe:
+            httpGet: {path: /health, port: http}
+            initialDelaySeconds: 5
+            periodSeconds: 20
+            failureThreshold: 6
+          readinessProbe:
+            httpGet: {path: /health, port: http}
+            initialDelaySeconds: 2
+            periodSeconds: 10
+            failureThreshold: 5
+          # About 70 MiB idle and 80 MiB under steady load, measured; the
+          # parser's worker heap is capped at 128 MB (VALIDATE_HEAP_MB).
+          resources:
+            requests: {cpu: 25m, memory: 96Mi}
+            limits:   {cpu: 500m, memory: 256Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: diagram-validator
+spec:
+  type: ClusterIP
+  selector:
+    app: diagram-validator
+  ports:
+    - name: http
+      port: 8005
+      targetPort: http
+---
+# Only the MCP server may call it, and it may call nothing.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: diagram-validator
+spec:
+  podSelector:
+    matchLabels:
+      app: diagram-validator
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: mcp
+      ports:
+        - port: 8005
+  egress: []

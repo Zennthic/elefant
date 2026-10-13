@@ -1,0 +1,17 @@
+# Who reviews what. GitHub requests a review from the owners of every path a
+# pull request touches; the LAST matching rule wins, so the stricter rules sit
+# below the catch-all.
+#
+# An email owner must be a verified address on a GitHub account with write
+# access to this repository, or GitHub routes nothing for that rule.
+
+* joe@zennthic.com
+
+# Authentication, OAuth and SSO: tenant isolation and sign-in live here.
+/editor/auth*.py joe@zennthic.com
+/editor/routers/oauth.py joe@zennthic.com
+/editor/routers/sso.py joe@zennthic.com
+
+# CI and deployment: a change here runs on, or ships to, our own machines.
+/.github/workflows/ joe@zennthic.com
+/deploy/ joe@zennthic.com

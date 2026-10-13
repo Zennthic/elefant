@@ -1,0 +1,59 @@
+# CONTRIBUTING.md asks every contributor to certify the Developer Certificate
+# of Origin. This is what collects it.
+#
+# Apache-2.0 §5 licenses an incoming PR under the project license automatically,
+# but it grants nothing if the contributor never held the rights to begin with —
+# code pasted from a copyleft project, or owned by an employer. The DCO is the
+# per-commit assertion that they did. Asking for it in a document and never
+# checking would leave us with no record on the day it matters.
+#
+# Its own workflow because build-deploy.yml deliberately doesn't run on PRs
+# (it drives the self-hosted runners). pr-checks.yml runs lint and tests on a
+# PR, but only once the repo is public; this runs on every PR, always.
+#
+# THIS JOB IS ON A GITHUB-HOSTED RUNNER, AND IT STAYS THERE.
+# Everything in build-deploy.yml but `build-amd64` moved to self-hosted
+# runners to stop burning the account's Actions minutes. This did not, for a
+# reason that outranks the minutes it costs (a few seconds per PR):
+#
+#   * It runs on a pull request, so a FORK can reach it — and on
+#     `pull_request` the checkout is the fork's code, including its copy of check-dco.sh. Running that on a machine on the
+#     private network is arbitrary code execution by anyone who can open a PR.
+#   * Guarding it the way lint/test are guarded would be worse: the guard skips
+#     fork PRs, and a DCO check that does not run for outside contributors is
+#     exactly the contributors it exists for. Elefant is Apache-2.0 and asks
+#     every contributor to certify the DCO; collecting that promise and not
+#     checking it leaves no record on the day provenance is questioned.
+#
+# So the exposure is bounded (seconds, on a PR trigger, no deploy) and the
+# alternative is a legal gate with a hole in it. Revisit only if GitHub's
+# hosted minutes run out entirely, and then by finding a safe way to check a
+# fork — not by moving this onto the LAN.
+name: DCO
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  dco:
+    name: Signed-off-by
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Full history: we walk every commit the PR adds, not just the tip.
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+          # The PR's own check-dco.sh runs next. Its read-only token has no
+          # business sitting in .git/config where that script could read it.
+          persist-credentials: false
+
+      - name: Every commit carries a matching Signed-off-by
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: bash .github/scripts/check-dco.sh "$BASE" "$HEAD"

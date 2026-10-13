@@ -1,0 +1,11 @@
+# Build context hygiene (CQ-03). node_modules is installed inside the image
+# from package-lock.json, never copied from a developer's machine.
+node_modules/
+test/
+tests/
+.git
+.env
+.env.*
+__pycache__/
+*.backup
+THIRD_PARTY_NOTICES.md

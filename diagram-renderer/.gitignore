@@ -1,0 +1,4 @@
+# Installed from package-lock.json; never committed.
+node_modules/
+# Generated into the image at build time (scripts/license-scan.mjs).
+THIRD_PARTY_NOTICES.md

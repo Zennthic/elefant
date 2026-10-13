@@ -1,0 +1,82 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# This base is what a self-hoster applies, on any cluster. So it carries
+# nothing specific to one cluster — no hostname, no storage class, no pull
+# secret, no node affinity. Those live in an overlay (see ../overlays/example,
+# and the README for writing your own).
+namespace: elefant
+
+resources:
+  # namespace.yaml is deliberately NOT here — see the comment in that file.
+  - pvc.yaml
+  - postgres.yaml
+  - qdrant.yaml
+  - minio.yaml
+  - editor.yaml
+  - embedder.yaml
+  - memory-api.yaml
+  - memory-ui.yaml
+  - mcp.yaml
+  - nginx.yaml
+  - diagram-validator.yaml
+  # Optional: see the header of the file for leaving it out.
+  - diagram-renderer.yaml
+
+# Two things are deliberately NOT here:
+#   - the app Secret `elefant-secrets`: `apply -k` would rewrite it on every
+#     deploy, and POSTGRES_PASSWORD has to stay matched to the pgdata volume.
+#     Create it once; see the README.
+#   - any image pull secret: the images are public, and on a cluster with a
+#     replicator, shipping your own copy REPLACES the good one. Add it in an
+#     overlay only if your registry is private.
+
+images:
+  - name: ghcr.io/zennthic/elefant/editor
+    newTag: v0.1.0
+  - name: ghcr.io/zennthic/elefant/embedder
+    newTag: v0.1.0
+  - name: ghcr.io/zennthic/elefant/memory-api
+    newTag: v0.1.0
+  - name: ghcr.io/zennthic/elefant/memory-ui
+    newTag: v0.1.0
+  - name: ghcr.io/zennthic/elefant/mcp
+    newTag: v0.1.0
+  - name: ghcr.io/zennthic/elefant/nginx
+    newTag: v0.1.0
+  - name: ghcr.io/zennthic/elefant/diagram-renderer
+    newTag: v0.1.0
+  - name: ghcr.io/zennthic/elefant/diagram-validator
+    newTag: v0.1.0
+
+configMapGenerator:
+  # Every non-secret value the stack reads. A consumer overrides any of these
+  # by declaring a configMapGenerator with the same name and `behavior: merge`
+  # in their own kustomization — no patch needed, and no fork of this file.
+  - name: elefant-config
+    literals:
+      # CHANGE THIS. It is the host the Ingress serves and the host the editor
+      # and the MCP server hand out as their own external URLs.
+      - ELEFANT_PUBLIC_DOMAIN=elefant.example.com
+      - ELEFANT_APP_NAME=Elefant
+      # single-org (one organisation) or multi-org (a platform admin hosts many).
+      - ELEFANT_MODE=single-org
+      # Bundled MinIO. Point at managed S3 / R2 / B2 by overriding the endpoint
+      # and the region, and leave the minio Deployment out with a patch.
+      - ELEFANT_S3_ENDPOINT_URL=http://minio:9000
+      - ELEFANT_S3_REGION=us-east-1
+      - EMBEDDING_PROVIDER=local
+      - EMBEDDING_MODEL=multi-qa-distilbert-cos-v1
+      - GIT_SOURCE_EMBED=false
+      - MULTI_TENANT_DOCS=true
+      - ELEFANT_CARD_EVAL_LOCK_STALE_SECONDS=1800
+      # Per-token MCP rate limiting, off by default (0 = unlimited).
+      - ELEFANT_MCP_RATE_LIMIT_RPM=0
+      - ELEFANT_MCP_RATE_LIMIT_RPD=0
+
+labels:
+  # includeSelectors: false matters. Letting kustomize into spec.selector makes
+  # every Deployment fail the NEXT apply on an immutable-field conflict.
+  - includeSelectors: false
+    pairs:
+      app.kubernetes.io/part-of: elefant

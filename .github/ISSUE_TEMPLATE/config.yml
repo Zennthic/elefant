@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/Zennthic/elefant/security/advisories/new
+    about: Report it privately, not in a public issue. SECURITY.md has the details.
+  - name: Ask a question
+    url: https://github.com/Zennthic/elefant/discussions
+    about: Questions, setup help and ideas go to GitHub Discussions.

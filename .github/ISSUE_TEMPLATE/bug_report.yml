@@ -1,0 +1,88 @@
+name: Bug report
+description: Something in Elefant does not work as documented.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Please do not report a security vulnerability here:
+        use the private form in [SECURITY.md](https://github.com/Zennthic/elefant/blob/main/SECURITY.md).
+        For a question, use [Discussions](https://github.com/Zennthic/elefant/discussions).
+  - type: input
+    id: version
+    attributes:
+      label: Elefant version
+      description: >-
+        The line at the bottom of **Settings** (or the platform admin page), or
+        the output of `curl -s http://<host>:<port>/health` against the front
+        door. Please give both `version` (the tag you deployed, e.g. `v1.2.3`)
+        and `build` (the `main-<sha7>` it was built from).
+      placeholder: "version: v1.2.3, build: main-abc1234"
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: Install method
+      options:
+        - Docker Compose
+        - Kubernetes
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: arch
+    attributes:
+      label: Architecture
+      options:
+        - amd64
+        - arm64
+    validations:
+      required: true
+  - type: dropdown
+    id: service
+    attributes:
+      label: Which service
+      description: The one that misbehaves, if you know. See the Services table in the README.
+      multiple: true
+      options:
+        - editor
+        - embedder
+        - mcp
+        - memory-api
+        - memory-ui
+        - nginx
+        - postgres or qdrant
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open ...
+        2. Click ...
+        3. See ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: >-
+        For example `docker compose logs <service>` or `kubectl logs`.
+        **Redact tokens, passwords, keys and host names before you paste.**
+      render: text

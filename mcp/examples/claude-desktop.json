@@ -1,0 +1,17 @@
+{
+  "_comment": "Merge this into your Claude Desktop claude_desktop_config.json under the 'mcpServers' key.",
+  "_config_path_macos":   "~/Library/Application Support/Claude/claude_desktop_config.json",
+  "_config_path_windows": "%APPDATA%\\Claude\\claude_desktop_config.json",
+  "_requirements": "Claude Desktop 0.10+ required for remote Streamable HTTP MCP support.",
+  "_after_editing": "Restart Claude Desktop. On first use you will be prompted to approve the connection.",
+
+  "mcpServers": {
+    "knowledge-base": {
+      "url": "https://elefant.example.com/mcp",
+      "transport": "streamable-http",
+      "headers": {
+        "Authorization": "Bearer <your-token-here>"
+      }
+    }
+  }
+}

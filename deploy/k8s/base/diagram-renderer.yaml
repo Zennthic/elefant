@@ -1,0 +1,105 @@
+# OPTIONAL. Renders Mermaid diagrams to images for the MCP diagram tools, in
+# a headless Chromium. Without it the diagram tools still store, validate
+# (diagram-validator.yaml) and patch diagrams, and the wiki still draws them
+# in the browser; agents just get no image back. To leave it out, drop `diagram-renderer.yaml` from resources in
+# your own kustomization (or delete it with a `$patch: delete`), and set the
+# MCP server's DIAGRAM_RENDERER_URL to "".
+#
+# Diagram source is untrusted input to a browser, so the pod is locked down:
+# non-root, read-only root filesystem, no capabilities, and the NetworkPolicy
+# below lets only the MCP server in and nothing out. The service's own notes
+# on containment are at the top of diagram-renderer/server.mjs.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: diagram-renderer
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: diagram-renderer
+  template:
+    metadata:
+      labels:
+        app: diagram-renderer
+    spec:
+      enableServiceLinks: false
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: diagram-renderer
+          image: ghcr.io/zennthic/elefant/diagram-renderer
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          ports:
+            - name: http
+              containerPort: 8004
+          env:
+            - name: INTERNAL_SERVICE_TOKEN
+              valueFrom:
+                secretKeyRef: {name: elefant-secrets, key: ELEFANT_INTERNAL_SERVICE_TOKEN}
+            # Chromium wants a writable home for its profile.
+            - name: HOME
+              value: /tmp
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          # /health does no browser work, so neither probe waits on a render.
+          livenessProbe:
+            httpGet: {path: /health, port: http}
+            initialDelaySeconds: 10
+            periodSeconds: 20
+            failureThreshold: 6
+          readinessProbe:
+            httpGet: {path: /health, port: http}
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            failureThreshold: 5
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits:   {cpu: "1",  memory: 1Gi}
+      volumes:
+        - name: tmp
+          emptyDir: {sizeLimit: 256Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: diagram-renderer
+spec:
+  type: ClusterIP
+  selector:
+    app: diagram-renderer
+  ports:
+    - name: http
+      port: 8004
+      targetPort: http
+---
+# Only the MCP server may call it, and it may call nothing. Enforced by any
+# CNI that implements NetworkPolicy (most do; flannel alone does not, in which
+# case the in-browser request blocking still holds).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: diagram-renderer
+spec:
+  podSelector:
+    matchLabels:
+      app: diagram-renderer
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: mcp
+      ports:
+        - port: 8004
+  egress: []

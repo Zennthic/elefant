@@ -1,0 +1,9 @@
+# Test-only dependencies.  Not installed into runtime container images —
+# the Dockerfiles only pull each service's own requirements.txt.  CI's
+# `test` job installs all four service requirements PLUS this file so it
+# can import every service's modules and run pytest against them.
+pytest>=8.0
+pytest-asyncio>=0.23
+hypothesis>=6.100
+respx>=0.21        # httpx mock — used by service-level integration tests
+freezegun>=1.4     # for time-sensitive tests (OAuth code expiry, etc.)

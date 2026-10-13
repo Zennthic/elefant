@@ -1,0 +1,81 @@
+# One PVC per Compose named volume, minus hf_cache — that one is an emptyDir
+# on the embedder, because it is a model download that costs a few minutes to
+# refetch and nothing to lose.
+#
+# No storageClassName anywhere in this file, on purpose: the cluster's default
+# class is used, so this works on k3s (local-path), on a managed cloud cluster,
+# and on Longhorn. An overlay pins a class when it wants one.
+#
+# Every claim is ReadWriteOnce. `docs` and `backend-sync` are SHARED by the
+# editor and the embedder, which RWO allows only when both pods land on the
+# same node — see the required pod affinity on the embedder. Do not "fix" that
+# by asking for RWX; most clusters do not offer it.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: docs
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: editor-data
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: backend-sync
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: git-sources
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: qdrant-data
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-data
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: minio-data
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 20Gi
