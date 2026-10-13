@@ -1,0 +1,57 @@
+# OPTIONAL. ingress-nginx + cert-manager, with TLS.
+#
+# Copy this next to your own kustomization.yaml, change every occurrence of
+# elefant.example.com to your host, change the issuer name to yours, and add the
+# file to `resources`. The host must match the ELEFANT_PUBLIC_DOMAIN you set in
+# your configMapGenerator, or the editor hands out links to a name this Ingress
+# does not serve.
+#
+# Prerequisites, both of which this file assumes rather than creates:
+#   * ingress-nginx installed, with an IngressClass (`kubectl get ingressclass`).
+#   * cert-manager installed, with a working ClusterIssuer. Check it first —
+#     `kubectl get clusterissuer` should show READY=True. An Ingress pointed at a
+#     broken issuer stays up serving the controller's self-signed default
+#     certificate, which looks like a bad certificate rather than a missing one.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: elefant
+  annotations:
+    # Your ClusterIssuer. `cert-manager.io/issuer` instead if it is namespaced.
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+
+    # Attachments and org snapshots are large. The controller's default is 1m,
+    # and an upload over it is rejected by the proxy with a 413 that never
+    # reaches the application.
+    nginx.ingress.kubernetes.io/proxy-body-size: 64m
+
+    # The MCP endpoint streams: a tool call holds the connection open for as
+    # long as it runs. At the default 60s read timeout a long call is cut off
+    # mid-response, and the client sees a truncated stream rather than an error.
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+
+spec:
+  # `kubectl get ingressclass` — usually `nginx`.
+  ingressClassName: nginx
+
+  tls:
+    - hosts: [elefant.example.com]
+      # cert-manager creates this Secret. Do not create it yourself.
+      secretName: elefant-tls
+
+  rules:
+    - host: elefant.example.com
+      http:
+        paths:
+          # ONE rule, and everything goes through nginx. The Elefant nginx is
+          # what performs the auth_request subrequest for every path, so a rule
+          # that sends /editor or /mcp straight at those Services would skip
+          # authentication entirely.
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: nginx
+                port:
+                  number: 80

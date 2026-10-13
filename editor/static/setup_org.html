@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Theme and palette, applied before paint; see theme.js. The colour tokens
+       come from appearance.css (generated), the foundation rules from
+       elefant-ui.css — both before this page's own <style>, which refines them. -->
+  <script src="/theme.js"></script>
+  <link rel="stylesheet" href="/appearance.css">
+  <link rel="stylesheet" href="/elefant-ui.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="elefant_transparent.png" type="image/png">
+  <title>Set up organisation — <!-- APP_NAME --></title>
+  <style>
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family: var(--font-sans); background:var(--bg); color:var(--text);
+           min-height:100vh; padding:2rem 1rem; }
+    .container { max-width:560px; margin:0 auto; }
+    h1 { font-size:1.5rem; text-align:center; margin-bottom:0.5rem; letter-spacing: -0.02em; }
+    .lede { text-align:center; color:var(--muted); margin-bottom:2rem; font-size:0.875rem; }
+    .step { background:var(--panel); border:1px solid var(--line); border-radius:var(--radius-sm);
+            padding:1.5rem; margin-bottom:1rem; }
+    .step h2 { font-size:0.95rem; font-weight:600; margin-bottom:0.5rem;
+               display:flex; align-items:center; gap:0.5rem; }
+    .num { display:inline-flex; width:24px; height:24px; border-radius:50%;
+           background:var(--accent); color:var(--on-accent); font-size:0.8125rem; font-weight:700;
+           align-items:center; justify-content:center; }
+    .help { font-size:0.8125rem; color:var(--muted); margin-bottom:0.75rem; }
+    label { display:block; font-size:0.8125rem; color:var(--muted); margin-bottom:0.25rem; }
+    input, select { width:100%; padding:0.5rem 0.75rem; border: 1px solid var(--line);
+                    border-radius:var(--radius-sm); background:var(--field); color:var(--text);
+                    font-size:0.875rem; outline:none; margin-bottom:0.75rem; }
+    input:focus, select:focus { border-color:var(--accent); box-shadow: 0 0 0 3px var(--accentbg); }
+    .btn { padding:0.625rem 1.25rem; background:var(--accent); color:var(--on-accent); border:none;
+           border-radius:var(--radius-sm); font-size:0.875rem; font-weight: 550; cursor:pointer; }
+    .btn:hover { background:var(--accent-hover); }
+    .btn.secondary { background:var(--accentbg); color:var(--text); }
+    .row { display:flex; gap:0.75rem; margin-top:0.75rem; }
+    .invite-result { font-family:ui-monospace,monospace; font-size:0.8125rem;
+                     padding:0.5rem 0.75rem; background:var(--field);
+                     border-radius:var(--radius-xs); word-break:break-all; margin-top:0.5rem; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>Welcome to <!-- APP_NAME --></h1>
+  <p class="lede">A few quick steps to set up your organisation.</p>
+
+  <div class="step">
+    <h2><span class="num">1</span>Organisation details</h2>
+    <p class="help">This name appears on your wiki, login pages, and invite emails.</p>
+    <label>Display name</label>
+    <input id="display_name" placeholder="Acme Inc.">
+    <label>Domain (optional)</label>
+    <input id="domain" placeholder="acme.com  or  acme.local">
+    <label>MFA policy</label>
+    <select id="mfa_policy">
+      <option value="enforced">Required for all users</option>
+      <option value="optional">Optional for plain users</option>
+    </select>
+    <button class="btn" onclick="saveOrg()">Save</button>
+  </div>
+
+  <div class="step">
+    <h2><span class="num">2</span>Create your first team</h2>
+    <p class="help">Teams group users for shared access to wiki spaces and memories.</p>
+    <label>Team name</label>
+    <input id="team_name" placeholder="Engineering">
+    <button class="btn" onclick="createTeam()">Create team</button>
+  </div>
+
+  <div class="step">
+    <h2><span class="num">3</span>Invite a teammate (optional)</h2>
+    <p class="help">Generates a one-time URL + 12-character code.</p>
+    <label>Role</label>
+    <select id="invite_role">
+      <option value="user">User</option>
+      <option value="team_admin">Team admin</option>
+      <option value="org_admin">Org admin</option>
+    </select>
+    <label>Email (optional)</label>
+    <input id="invite_email" type="email" placeholder="alice@example.com">
+    <button class="btn" onclick="createInvite()">Generate invite</button>
+    <div id="invite-result"></div>
+  </div>
+
+  <div class="step">
+    <h2><span class="num">4</span>Finish</h2>
+    <p class="help">You can configure identity providers, additional teams, and ACLs from the admin console.</p>
+    <button class="btn" onclick="finish()">Finish setup</button>
+  </div>
+</div>
+
+<script>
+const $ = (sel) => document.querySelector(sel);
+
+async function loadOrg() {
+  const o = await fetch('/api/org').then(r => r.json());
+  $('#display_name').value = o.display_name || o.name || '';
+  $('#domain').value = o.domain || '';
+  $('#mfa_policy').value = o.mfa_policy || 'enforced';
+}
+loadOrg();
+
+async function saveOrg() {
+  const r = await fetch('/api/org', { method:'PATCH', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ display_name: $('#display_name').value, domain: $('#domain').value,
+                            mfa_policy: $('#mfa_policy').value })});
+  if (r.ok) alert('Saved.'); else alert('Save failed: ' + (await r.json()).detail);
+}
+
+async function createTeam() {
+  const name = $('#team_name').value.trim();
+  if (!name) return alert('Team name is required');
+  const r = await fetch('/api/admin/teams', { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ name }) });
+  if (r.ok) { alert('Team created'); $('#team_name').value = ''; }
+  else alert('Failed: ' + (await r.json()).detail);
+}
+
+async function createInvite() {
+  const r = await fetch('/api/admin/invites', { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ role: $('#invite_role').value, email: $('#invite_email').value })});
+  if (!r.ok) return alert('Failed: ' + (await r.json()).detail);
+  const data = await r.json();
+  $('#invite-result').innerHTML =
+    `<div class="invite-result"><strong>URL:</strong> ${data.invite_url}<br>
+     <strong>Code:</strong> ${data.code}<br>
+     <strong>Expires:</strong> ${data.expires_at?.slice(0,10) || ''}</div>`;
+}
+
+async function finish() {
+  await fetch('/api/org', { method:'PATCH', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ setup_complete: true })});
+  location.href = '/';
+}
+</script>
+</body>
+</html>

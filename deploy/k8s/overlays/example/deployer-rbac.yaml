@@ -1,0 +1,91 @@
+# The credential CI deploys with. Applied ONCE by a cluster admin, by hand.
+#
+#   kubectl apply -f deploy/k8s/overlays/example/deployer-rbac.yaml
+#
+# DELIBERATELY NOT IN kustomization.yaml. Two reasons, and they point the same
+# way: `kubectl apply -k` runs AS this ServiceAccount, and a credential cannot
+# be the thing that grants itself its own permissions. The ClusterRole and the
+# ClusterRoleBinding below are cluster-scoped besides, which this account is
+# specifically not allowed to touch.
+#
+# Read README.md in this directory for the full procedure, including how to
+# turn the token into KUBECONFIG_B64 and how to prove the scope actually holds.
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: github-deployer
+  namespace: elefant
+---
+# Kubernetes 1.24 stopped auto-creating a token Secret for a ServiceAccount.
+# A projected token from `kubectl create token` expires, which is wrong for a
+# credential that lives in a GitHub secret and is not rotated on a schedule, so
+# the long-lived kind is requested explicitly. The controller fills in the
+# token once this is applied.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: github-deployer-token
+  namespace: elefant
+  annotations:
+    kubernetes.io/service-account.name: github-deployer
+type: kubernetes.io/service-account-token
+---
+# The built-in `admin` ClusterRole, bound through a RoleBinding so it applies
+# ONLY inside this namespace. A ClusterRoleBinding with the same role would be
+# cluster-admin in all but name.
+#
+# `admin` rather than `edit`: the deploy creates the app Secret on first run,
+# and `edit` cannot read Secrets back to check whether one already exists —
+# which is the check that stops POSTGRES_PASSWORD being re-rolled against an
+# existing pgdata volume.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: github-deployer-admin
+  namespace: elefant
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: admin
+subjects:
+  - kind: ServiceAccount
+    name: github-deployer
+    namespace: elefant
+---
+# THE ONE CLUSTER-SCOPED GRANT, and it is deliberately tiny.
+#
+# A Namespace is a cluster-scoped object, so namespace-scoped admin cannot read
+# or label one — not even its own. A deploy job that relabels the namespace to
+# make a secret replicator push the pull secret in again needs this. If yours
+# does not, leave out this ClusterRole and its binding.
+#
+# `resourceNames` limits this to the single namespace `elefant`. Note what that
+# means in practice: a `list` or `watch` verb CANNOT be restricted by
+# resourceNames, so neither is granted — this account cannot enumerate the
+# cluster's namespaces, only get and patch the one it owns.
+#
+# It still cannot CREATE the namespace. That is a cluster admin's job, once, by
+# hand; see README.md.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: elefant-namespace-patcher
+rules:
+  - apiGroups: [""]
+    resources: [namespaces]
+    resourceNames: [elefant]
+    verbs: [get, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: github-deployer-namespace-patcher
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: elefant-namespace-patcher
+subjects:
+  - kind: ServiceAccount
+    name: github-deployer
+    namespace: elefant

@@ -1,0 +1,180 @@
+name: Release
+
+# A release RETAGS, it does not rebuild. The images for a tagged commit were
+# already built, tested and deployed to Stage by build-deploy.yml when that
+# commit landed on `main`; rebuilding here would produce different bytes from
+# the ones that were actually exercised, which is the opposite of what a
+# version number is for.
+#
+# So the release process is:
+#   1. commit "release: vX.Y.Z", bumping newTag in deploy/k8s/base/kustomization.yaml
+#   2. let build-deploy.yml run on main and go green
+#   3. tag THAT commit vX.Y.Z and push the tag
+#
+# Step 1 is what the version check below enforces. Without it the repo could be
+# tagged v1.2.3 while the manifests a stranger applies still say v1.2.2.
+on:
+  push:
+    tags: ['v*']
+
+# NEVER add `pull_request` here, for the same reason as build-deploy.yml: this
+# runs on a machine on a private network and holds a token that can write
+# packages. editor/tests/test_ci_runners.py asserts it.
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_BASE: ghcr.io/zennthic/elefant
+
+# Least privilege by default: every job gets a read-only token unless it
+# widens its own scope below (only the jobs that push images or cut a release
+# do). A job without a `permissions:` block therefore cannot write anything.
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Publish ${{ github.ref_name }}
+    # Inert in a fork: a fork's tag must not try to publish images or a
+    # release (asserted in editor/tests/test_ci_runners.py).
+    if: github.repository == 'zennthic/elefant'
+    # Self-hosted like everything else. The one hosted exception in this repo
+    # is the amd64 build job in build-deploy.yml, and it is hosted because
+    # hosted runners are amd64 — not because hosted is preferred.
+    runs-on: [self-hosted, macOS]
+    permissions:
+      contents: write        # to create the GitHub Release
+      packages: write        # to add the version tags
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: The tag and the manifests must agree
+        run: bash .github/scripts/check-release-version.sh "${{ github.ref_name }}"
+
+      # Same keychain-free auth as build-deploy.yml's build job — see the long
+      # comment there. `docker/login-action` reaches for a locked keychain on
+      # this headless runner.
+      - name: Docker login to ghcr.io (file store, no macOS keychain)
+        env:
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          export DOCKER_CONFIG="$RUNNER_TEMP/docker-cfg-release"
+          echo "DOCKER_CONFIG=$DOCKER_CONFIG" >> "$GITHUB_ENV"
+          mkdir -p "$DOCKER_CONFIG"
+          cp -R "$HOME/.docker/." "$DOCKER_CONFIG/" 2>/dev/null || true
+          python3 -c "import base64,json,os;p=os.path.join(os.environ['DOCKER_CONFIG'],'config.json');d=json.load(open(p)) if os.path.exists(p) else {};[d.pop(k,None) for k in ('credsStore','credStore','credHelpers')];a=base64.b64encode((os.environ['GHCR_USER']+':'+os.environ['GHCR_TOKEN']).encode()).decode();d.setdefault('auths',{})['ghcr.io']={'auth':a};json.dump(d,open(p,'w'));print('file-store auths now:',list(d['auths'].keys()))"
+
+      - name: Export Docker host (OrbStack socket)
+        run: echo "DOCKER_HOST=$(docker context inspect --format '{{.Endpoints.docker.Host}}')" >> $GITHUB_ENV
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Retag this commit's images to the version
+        run: |
+          set -euo pipefail
+          VERSION="${{ github.ref_name }}"                 # vX.Y.Z
+          SHA7="$(echo "${{ github.sha }}" | cut -c1-7)"
+          SRC_TAG="main-${SHA7}"
+          # The moving minor tag. The card calls this "X.Y"; it is published
+          # v-prefixed so that every tag a user can type looks the same, and a
+          # bare `1.2` next to `v1.2.3` does not read like a different scheme.
+          MINOR="v$(echo "${VERSION#v}" | cut -d. -f1,2)"
+
+          echo "Releasing ${VERSION} (also moving ${MINOR}) from ${SRC_TAG}"
+
+          # A prerelease must not move the minor tag: `v1.3` should mean the
+          # newest STABLE 1.3, or `ELEFANT_TAG=v1.3` would hand somebody a
+          # release candidate.
+          MOVE_MINOR=1
+          case "$VERSION" in *-*) MOVE_MINOR=0
+            echo "Prerelease: leaving ${MINOR} where it is";; esac
+
+          for svc in editor embedder mcp memory-api memory-ui nginx diagram-renderer diagram-validator; do
+            IMG="${IMAGE_BASE}/${svc}"
+            # main-<sha7> is a multi-architecture manifest list, so retagging
+            # copies every architecture rather than flattening to one.
+            if [ "$MOVE_MINOR" = "1" ]; then
+              docker buildx imagetools create \
+                --tag "${IMG}:${VERSION}" --tag "${IMG}:${MINOR}" "${IMG}:${SRC_TAG}"
+            else
+              docker buildx imagetools create --tag "${IMG}:${VERSION}" "${IMG}:${SRC_TAG}"
+            fi
+            echo "  ${svc}: ${VERSION}"
+          done
+
+          EMB="${IMAGE_BASE}/embedder"
+          docker buildx imagetools create \
+            --tag "${EMB}:${VERSION}-slim" "${EMB}:${SRC_TAG}-slim"
+          echo "  embedder (slim): ${VERSION}-slim"
+
+          # `latest` is deliberately untouched: it means the head of main, and
+          # a release is usually behind it by the time it is cut.
+
+      - name: What the released tags resolve to
+        run: |
+          set -euo pipefail
+          for svc in editor embedder mcp memory-api memory-ui nginx diagram-renderer diagram-validator; do
+            IMG="${IMAGE_BASE}/${svc}:${{ github.ref_name }}"
+            echo "── ${IMG}"
+            docker buildx imagetools inspect "$IMG" | grep -i 'platform' || \
+              echo "   (single-platform manifest, no platform list)"
+          done
+
+      - name: Create the GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # A prerelease is marked as one, so it does not become the "latest
+          # release" a user lands on from the repo page.
+          case "$VERSION" in *-*) PRERELEASE=true;; *) PRERELEASE=false;; esac
+          export PRERELEASE
+
+          # curl against the REST API rather than a third-party action or the
+          # gh CLI: neither is guaranteed present on this runner, and cutting a
+          # release is not the moment to find that out. The body is built in
+          # python so the JSON is escaped properly rather than by hand.
+          python3 - <<'PY' > "$RUNNER_TEMP/release.json"
+          import json, os
+          v = os.environ["VERSION"]
+          body = f"""Container images for this release:
+
+          ```
+          ghcr.io/zennthic/elefant/{{editor,embedder,mcp,memory-api,memory-ui,nginx,diagram-renderer,diagram-validator}}:{v}
+          ```
+
+          Multi-architecture: `linux/amd64` and `linux/arm64`.
+
+          **Docker Compose** — set `ELEFANT_TAG={v}` in your `.env`.
+
+          **Kubernetes** — `deploy/k8s/base/kustomization.yaml` at this tag pins `newTag: {v}`, so `kubectl apply -k` installs exactly these images.
+
+          Install instructions: the repository README, and `deploy/k8s/README.md` for Kubernetes."""
+          # The heredoc is indented to sit inside the YAML block, so undo that.
+          body = "\n".join(line[10:] if line.startswith(" " * 10) else line
+                            for line in body.splitlines())
+          print(json.dumps({
+              "tag_name": v,
+              "name": v,
+              "body": body,
+              "draft": False,
+              "prerelease": os.environ["PRERELEASE"] == "true",
+              "generate_release_notes": True,
+          }))
+          PY
+
+          curl -fsSL -X POST \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${REPO}/releases" \
+            -d @"$RUNNER_TEMP/release.json" \
+            -o "$RUNNER_TEMP/release-response.json"
+          python3 -c "import json,os;d=json.load(open(os.environ['RUNNER_TEMP']+'/release-response.json'));print('Release:', d.get('html_url'))"

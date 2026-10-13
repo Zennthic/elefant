@@ -1,0 +1,7 @@
+# MCP Python SDK — pin to 1.x. The FastMCP server API we build on lives at
+# `mcp.server.fastmcp`; SDK 2.0.0 removed that module, so an unpinned `>=1.6.0`
+# silently resolved to 2.0.0 in fresh CI and broke the import. 1.28.1 is the
+# verified-good release (has fastmcp, without the 1.6.0 kb:// resource bug).
+mcp[cli]==1.28.1
+httpx==0.28.1
+uvicorn==0.54.0

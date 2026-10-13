@@ -1,0 +1,69 @@
+# OPTIONAL. Traefik, which is what a default k3s installation gives you.
+#
+# Copy this next to your own kustomization.yaml, change elefant.example.com to
+# your host, and add the file to `resources`. The host must match the
+# ELEFANT_PUBLIC_DOMAIN you set in your configMapGenerator.
+#
+# Traefik reads plain Ingress objects, so nothing here needs its CRDs. The two
+# annotations below are Traefik's own and are ignored by other controllers.
+#
+# CHOOSE ONE of the two TLS arrangements at the bottom before applying.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: elefant
+  annotations:
+    # The entrypoint to serve on. `websecure` is the name k3s's bundled Traefik
+    # gives :443; a Traefik installed by hand may call it something else.
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+
+    # If you use cert-manager with Traefik, uncomment this and uncomment
+    # spec.tls below. With Traefik's own ACME resolver, leave both alone.
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+
+spec:
+  # k3s's bundled Traefik registers itself as the default IngressClass, so this
+  # line is often unnecessary there. It is harmless and explicit.
+  ingressClassName: traefik
+
+  # ── TLS: pick one ────────────────────────────────────────────────────────
+  #
+  # (a) Traefik already holds a certificate that covers this host — a wildcard
+  #     from its own ACME resolver, or a default certificate in its static
+  #     configuration. Then leave `tls` commented out. router.tls above is
+  #     enough to serve HTTPS, and Traefik picks the certificate itself.
+  #
+  # (b) Something issues a per-host certificate into a Secret (cert-manager, or
+  #     you create it by hand). Then uncomment this:
+  #
+  # tls:
+  #   - hosts: [elefant.example.com]
+  #     secretName: elefant-tls
+  #
+  # Do not uncomment it for case (a). A `tls` block naming a Secret that does
+  # not exist makes Traefik fall back to its built-in self-signed certificate
+  # for this host, which presents as a certificate error rather than as a
+  # missing Secret — and the working wildcard sits there unused.
+
+  rules:
+    - host: elefant.example.com
+      http:
+        paths:
+          # ONE rule, and everything goes through nginx. The Elefant nginx is
+          # what performs the auth_request subrequest for every path, so a rule
+          # that sends /editor or /mcp straight at those Services would skip
+          # authentication entirely.
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: nginx
+                port:
+                  number: 80
+
+# The MCP endpoint streams, and Traefik has no per-Ingress read timeout
+# annotation: `respondingTimeouts.readTimeout` is static configuration on the
+# entrypoint, set once for the whole instance. k3s's default is 0 (no timeout),
+# so there is usually nothing to do. If you have set one, make sure it is
+# comfortably longer than your longest MCP tool call.

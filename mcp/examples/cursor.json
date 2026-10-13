@@ -1,0 +1,16 @@
+{
+  "_comment": "Place at ~/.cursor/mcp.json (global) or .cursor/mcp.json (project root).",
+  "_after_editing": "Open Cursor Settings → MCP and toggle the 'knowledge-base' server on.",
+  "_agent_mode": "Cursor Agent mode uses MCP tools automatically.",
+  "_chat_mode": "In Cursor Chat, enable tools via the tools icon in the input bar.",
+
+  "mcpServers": {
+    "knowledge-base": {
+      "url": "https://elefant.example.com/mcp",
+      "transport": "streamable-http",
+      "headers": {
+        "Authorization": "Bearer <your-token-here>"
+      }
+    }
+  }
+}

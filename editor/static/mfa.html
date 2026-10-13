@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Theme and palette, applied before paint; see theme.js. The colour tokens
+       come from appearance.css (generated), the foundation rules from
+       elefant-ui.css — both before this page's own <style>, which refines them. -->
+  <script src="/theme.js"></script>
+  <link rel="stylesheet" href="/appearance.css">
+  <link rel="stylesheet" href="/elefant-ui.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="elefant_transparent.png" type="image/png">
+  <title>Two-factor — <!-- APP_NAME --></title>
+  <style>
+    /* Re-use the auth visual language even before auth.css ships;
+       inline so the page stands alone like login.html. */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: var(--font-sans); background: var(--bg); color: var(--text);
+           min-height:100vh; display:flex; align-items:center; justify-content:center; padding:1rem; }
+    .card { background:var(--panel); border:1px solid var(--line); border-radius: var(--radius);
+            width:100%; max-width:360px; padding:2rem;
+      box-shadow: var(--shadow);
+    }
+    h1 { font-size: 22px; font-weight:600; text-align:center; margin-bottom:0.25rem; letter-spacing: -0.02em; }
+    .subtitle { text-align:center; color:var(--muted); font-size:0.875rem; margin-bottom:1.5rem; }
+    .username { text-align:center; color:var(--muted); font-size:0.8125rem; margin-bottom:1rem;
+                font-family: ui-monospace, SFMono-Regular, monospace; }
+    label { display:block; font-size:0.875rem; font-weight:500; color:var(--muted); margin-bottom:0.375rem; }
+    input[type="text"] { width:100%; padding:0.5rem 0.75rem; border: 1px solid var(--line);
+                        border-radius:var(--radius-sm); background:var(--field); color:var(--text);
+                        font-size:1.25rem; font-family:ui-monospace,monospace; letter-spacing:0.5em;
+                        text-align:center; outline:none; }
+    input:focus { border-color:var(--accent); box-shadow: 0 0 0 3px var(--accentbg); }
+    .error { color:var(--danger); font-size:0.8125rem; margin-bottom:1rem; padding:0.5rem 0.75rem;
+             background:var(--dangerbg); border:1px solid var(--dangerline); border-radius:var(--radius-xs); display:none; }
+    .error:not(:empty) { display:block; }
+    .btn { width:100%; padding:0.625rem 1rem; background:var(--accent); color:var(--on-accent); border:none;
+           border-radius:var(--radius-sm); font-size:0.875rem; font-weight: 550; cursor:pointer; margin-top:0.5rem; }
+    .btn:hover { background:var(--accent-hover); }
+  </style>
+</head>
+<body>
+<div class="card">
+  <h1>Two-factor required</h1>
+  <p class="subtitle">Enter the 6-digit code from your authenticator app</p>
+  <p class="username"><!-- USERNAME --></p>
+  <p class="error"><!-- ERROR --></p>
+  <form method="POST" action="/mfa">
+    <input type="hidden" name="next" value="<!-- NEXT -->">
+    <label for="code">Authentication code</label>
+    <input type="text" id="code" name="code" inputmode="numeric" pattern="[0-9]*"
+           maxlength="6" autocomplete="one-time-code" autofocus required>
+    <button type="submit" class="btn">Verify</button>
+  </form>
+</div>
+</body>
+</html>

@@ -1,0 +1,110 @@
+---
+title: Site B logical layout
+config:
+  theme: base
+  themeVariables:
+    fontFamily: Inter, Segoe UI, Helvetica, Arial, sans-serif
+    lineColor: "#64748b"
+    edgeLabelBackground: "#ffffff"
+  flowchart:
+    curve: basis
+    nodeSpacing: 36
+    rankSpacing: 56
+---
+flowchart TB
+    NET(["Internet"])
+    LS[["Cloud VM<br/>overlay control plane<br/>vpn.example.com"]]
+    OVL{{"Overlay network<br/>self-hosted, 6 peers"}}
+    SITEA["Site A<br/>192.0.2.0/24<br/>gateway-a1, gateway-a2<br/>overlay routers"]
+
+    subgraph SITEB["Site B"]
+        direction TB
+        FW{{"Router / firewall<br/>model unknown"}}
+
+        subgraph SRV["Servers VLAN 198.51.100.0/24<br/>production"]
+            direction LR
+            subgraph SWARM["Docker Swarm"]
+                D01["docker-01<br/>small server<br/>Swarm manager<br/>overlay router"]
+                D04["docker-04<br/>small server"]
+                DRK["docker-02, 03<br/>small servers"]
+            end
+            subgraph COMPOSE["Docker Compose"]
+                D05["docker-05 .20<br/>Production app<br/>overlay router"]
+                OPI["utility-01<br/>monitoring"]
+            end
+            DNS(["DNS<br/>.10 and .11"])
+            STG[("storage-01 NAS<br/>S3 .30")]
+            HA["home-automation<br/>host unknown"]
+        end
+
+        MGMT["Management<br/>203.0.113.0/24<br/>management interfaces"]
+
+        subgraph LAB["Lab 10.0.20.0/24"]
+            direction TB
+            LD01["lab-docker-01 .40<br/>Swarm leader: ingress,<br/>tools, staging app<br/>overlay router"]
+            VIP{{"Virtual IP .50<br/>ingress"}}
+            subgraph K3S["k3s cluster, 8 nodes"]
+                direction LR
+                K01["k3s-01 .51<br/>control plane"]
+                KR["k3s-02, 04, 05<br/>.52 .54 .55<br/>overlay routers"]
+                K03["k3s-03 .53<br/>worker"]
+                KOL["k3s-06 to 08<br/>.56 to .58<br/>workers"]
+                LH[("Block storage<br/>two storage classes")]
+                AUTH["Identity provider"]
+                APPS["Monitoring and<br/>internal apps"]
+            end
+        end
+    end
+
+    %% ---- connectivity ----
+    NET --- FW
+    FW --- SRV
+    FW --- MGMT
+    FW --- LAB
+    LD01 --- VIP
+    VIP --- K3S
+    LS <--> OVL
+    NET -.- OVL
+    OVL <--> SITEA
+
+    %% ---- overlay routing peers, by metric ----
+    OVL e1@==>|"metric 100, preferred"| KR
+    OVL e2@-.->|"metric 200, standby"| LD01
+    OVL e3@-.->|"metric 500"| D01
+    OVL e4@-.->|"metric 500"| D05
+    D01 -.->|"routes"| MGMT
+
+    %% ---- data and auth paths ----
+    LH -.->|"backups (S3)"| STG
+    STG e5@-.->|"replication"| SITEA
+    SITEA -.->|"SSO"| AUTH
+
+    e1@{ animate: true, animation: fast }
+    e2@{ animate: true, animation: slow }
+    e5@{ animate: true, animation: slow }
+
+    %% ---- styling ----
+    classDef cloud fill:#e0f2fe,stroke:#0284c7,color:#0c4a6e,stroke-width:2px
+    classDef overlay fill:#ede9fe,stroke:#7c3aed,color:#4c1d95,stroke-width:2px
+    classDef remote fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:2px
+    classDef host fill:#ffffff,stroke:#475569,color:#0f172a
+    classDef router fill:#dcfce7,stroke:#16a34a,color:#14532d,stroke-width:3px
+    classDef store fill:#fce7f3,stroke:#db2777,color:#831843,stroke-width:2px
+    classDef unconfirmed fill:#f8fafc,stroke:#94a3b8,color:#475569,stroke-dasharray:5 4
+    classDef warn fill:#fee2e2,stroke:#dc2626,color:#7f1d1d,stroke-width:2px
+
+    class NET,LS cloud
+    class OVL overlay
+    class SITEA remote
+    class D04,DRK,OPI,K03,KOL,DNS,AUTH,APPS,VIP host
+    class D01,D05,LD01,KR router
+    class STG,LH store
+    class FW,HA,MGMT unconfirmed
+    class K01 warn
+
+    style SITEB fill:#f8fafc,stroke:#0f172a,stroke-width:2px,color:#0f172a
+    style SRV fill:#eff6ff,stroke:#2563eb,stroke-width:2px,color:#1e3a8a
+    style SWARM fill:#dbeafe,stroke:#60a5fa,color:#1e3a8a
+    style COMPOSE fill:#dbeafe,stroke:#60a5fa,color:#1e3a8a
+    style LAB fill:#f0fdf4,stroke:#16a34a,stroke-width:2px,color:#14532d
+    style K3S fill:#ecfccb,stroke:#65a30d,color:#365314

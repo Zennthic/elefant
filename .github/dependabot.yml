@@ -1,0 +1,119 @@
+# Keeps the pins honest. Every GitHub Action is pinned to a commit SHA (with
+# its version as a trailing comment) and every base image to an exact tag, so
+# nothing moves on its own; these entries are what propose the bumps.
+#
+# Note that build-deploy.yml does not run on pull requests. A Dependabot PR is
+# checked by pr-checks.yml (lint and every suite, on GitHub-hosted runners)
+# and by DCO. Read the release notes before merging one: the full pipeline
+# (build, deploy, smoke) runs after the merge, on main.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns: ["*"]
+
+  - package-ecosystem: docker
+    directories:
+      - /editor
+      - /embedder
+      - /mcp
+      - /memory-api
+      - /memory-ui
+      - /nginx
+      - /diagram-renderer
+      - /diagram-validator
+    schedule:
+      interval: weekly
+    # A Python minor bump (3.11 -> 3.14, PR #189) is a runtime upgrade for
+    # four services and their pinned wheels, and CI_IMAGE in the workflows
+    # tests on 3.11, so it cannot ride a base-image PR. Patch releases still
+    # come through. Lift with board card elefant-upgrade-python-runtime.
+    ignore:
+      - dependency-name: "python"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      # The diagram sidecars' Node. A major (22 -> 24) is a runtime upgrade
+      # to test with Chromium and the parser, not a base-image bump.
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major"]
+    groups:
+      base-images:
+        patterns: ["*"]
+
+  # Python: every service pins its direct dependencies exactly (CQ-01), so
+  # nothing moves until one of these PRs is merged. One entry per service so
+  # each gets its own grouped PR and a bump for one image never rides along
+  # with another. The embedder's entry covers requirements-local.txt too;
+  # torch is pinned in embedder/Dockerfile and has to be bumped by hand.
+  - package-ecosystem: pip
+    directory: /editor
+    schedule:
+      interval: weekly
+    groups:
+      editor:
+        patterns: ["*"]
+
+  - package-ecosystem: pip
+    directory: /embedder
+    schedule:
+      interval: weekly
+    groups:
+      embedder:
+        patterns: ["*"]
+
+  - package-ecosystem: pip
+    directory: /mcp
+    schedule:
+      interval: weekly
+    # mcp 2.x removed `mcp.server.fastmcp` (FastMCP became MCPServer), which
+    # main.py is built on, so a 2.x bump is a migration, not a pin change.
+    # Lift this when that migration lands (board card
+    # elefant-migrate-mcp-sdk-2). 1.x bumps still come through.
+    ignore:
+      - dependency-name: "mcp"
+        versions: [">=2"]
+    groups:
+      mcp:
+        patterns: ["*"]
+
+  - package-ecosystem: pip
+    directory: /memory-api
+    schedule:
+      interval: weekly
+    groups:
+      memory-api:
+        patterns: ["*"]
+
+  # The wiki UI: the Tiptap and markdown-it bundle, DOMPurify and the test
+  # tooling. The bundle ships to every browser, so its advisories matter.
+  - package-ecosystem: npm
+    directory: /memory-ui
+    schedule:
+      interval: weekly
+    groups:
+      memory-ui:
+        patterns: ["*"]
+
+  # The diagram renderer drives a browser over untrusted input, so mermaid and
+  # puppeteer-core security releases matter. Both are pinned exactly in
+  # package.json; this proposes the bumps.
+  - package-ecosystem: npm
+    directory: /diagram-renderer
+    schedule:
+      interval: weekly
+    groups:
+      diagram-renderer:
+        patterns: ["*"]
+
+  # The diagram validator parses untrusted input with mermaid and linkedom.
+  # Keep its mermaid on the renderer's version (CI checks they match).
+  - package-ecosystem: npm
+    directory: /diagram-validator
+    schedule:
+      interval: weekly
+    groups:
+      diagram-validator:
+        patterns: ["*"]

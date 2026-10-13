@@ -1,0 +1,81 @@
+# The front door. It carries the same nginx.conf as the Compose stack, which
+# is why every Service above keeps its Compose name AND its Compose port:
+# the upstreams (editor:8080, embedder:8001, memory-api:8002, mcp:8003,
+# memory-ui:8080) are resolved by that file and it is not templated.
+#
+# ONE THING TO KNOW ON A FIRST INSTALL. nginx resolves its upstream names once,
+# at startup, and refuses to start if one does not resolve. A Service object
+# gives DNS a name as soon as it exists, with or without a pod behind it, so
+# this settles itself the moment the whole base is applied — but on a greenfield
+# `apply -k` you may see nginx restart a couple of times in the first seconds
+# while the API server catches up. That is expected and it clears on its own.
+#
+# No `restart nginx` step is needed after a rollout, unlike Compose: a ClusterIP
+# is stable for the life of the Service, so the addresses nginx resolved at
+# startup stay correct when the pods behind them are replaced.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      enableServiceLinks: false
+      # Non-root, matching the image's own USER (101).
+      # nginx-unprivileged runs as 101 and listens on 8080.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: nginx
+          image: ghcr.io/zennthic/elefant/nginx
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+          ports:
+            - name: http
+              containerPort: 8080
+          # TCP rather than an HTTP path. Every location in nginx.conf proxies
+          # somewhere: `/` goes to the editor. An httpGet probe would therefore
+          # restart the FRONT DOOR whenever a BACKEND was unwell, which is the
+          # opposite of what a proxy should do. TCP asks only whether nginx is
+          # itself accepting connections, which is the question that belongs
+          # here. (A self-served location in nginx.conf would let readiness
+          # mean more than this; it is an app change, filed separately.)
+          livenessProbe:
+            tcpSocket: {port: http}
+            initialDelaySeconds: 10
+            periodSeconds: 20
+            failureThreshold: 6
+          readinessProbe:
+            tcpSocket: {port: http}
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            failureThreshold: 5
+          resources:
+            requests: {cpu: 20m,  memory: 32Mi}
+            limits:   {cpu: 500m, memory: 128Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx
+spec:
+  type: ClusterIP
+  selector:
+    app: nginx
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

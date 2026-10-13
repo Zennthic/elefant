@@ -1,0 +1,20 @@
+# Local embedding backend (EMBEDDING_PROVIDER=local).
+#
+# sentence-transformers pulls in torch and is multi-GB — the bulk of the
+# embedder image. It is ONLY needed to run embeddings on-box; deployments
+# that point at an external/custom embedding API (OpenAI, LM Studio, etc.)
+# never import it. It is therefore installed only into the FULL image
+# (Dockerfile ARG INCLUDE_LOCAL_EMBEDDINGS=true, the default). The slim
+# image variant omits this file.
+#
+# Pinned exactly, like the base requirements. torch itself is not listed here:
+# the Dockerfile installs it first, from PyTorch's CPU-only index, at the
+# version pinned there.
+sentence-transformers==6.1.0
+#
+# transformers is a transitive dependency, pinned here as well because it
+# carries most of this file's security advisories and because a version change
+# can change the vectors the model produces for the same text. Bump either pin
+# only with the vector compatibility check in tests/vector_compat.py: it says
+# whether existing Qdrant collections need a reindex.
+transformers==5.18.0

@@ -1,0 +1,21 @@
+{
+  "name": "elefant-diagram-validator",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "description": "Elefant sidecar: parses Mermaid diagrams for the MCP diagram tools, without a browser.",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test test/*.test.mjs",
+    "notices": "node scripts/license-scan.mjs --write THIRD_PARTY_NOTICES.md",
+    "licenses:check": "node scripts/license-scan.mjs"
+  },
+  "dependencies": {
+    "linkedom": "0.18.13",
+    "mermaid": "11.16.1"
+  }
+}

@@ -1,0 +1,56 @@
+---
+title: Example deployment
+config:
+  theme: base
+  themeVariables:
+    primaryColor: "#2a9d8f"
+    lineColor: "#e76f51"
+  flowchart:
+    curve: basis
+---
+flowchart LR
+  classDef entry fill:#ffd166,stroke:#8d6e00,color:#000
+  classDef store fill:#06d6a0,stroke:#03543f,color:#000
+  classDef worker fill:#118ab2,stroke:#073b4c,color:#fff
+
+  user([Visitor])
+  cdn{{Edge cache}}
+
+  subgraph site [Example site]
+    direction TB
+    subgraph front [Front tier]
+      direction LR
+      lb{{Load balancer}}
+      web1[[Web node A]]
+      web2[[Web node B]]
+    end
+    subgraph back [Back tier]
+      direction LR
+      api([Orders API])
+      jobs[[Job runner]]
+    end
+    subgraph data [Data tier]
+      direction LR
+      db[(Orders DB)]
+      queue[(Task queue)]
+    end
+  end
+
+  user e1@==>|HTTPS| cdn
+  cdn e2@==>|cache miss| lb
+  e1@{ animate: true, animation: fast }
+  e2@{ animate: true, animation: fast }
+  lb ==>|round robin| web1
+  lb ==>|round robin| web2
+  web1 -.->|REST| api
+  web2 -.->|REST| api
+  api ==>|writes| db
+  api -.->|enqueue| queue
+  queue -.->|dequeue| jobs
+  jobs -.->|reads| db
+
+  class cdn,lb entry
+  class db,queue store
+  class web1,web2,api,jobs worker
+  style front fill:#fdf0d5,stroke:#c1121f,stroke-width:2px
+  style data fill:#e0fbfc,stroke:#3d5a80,stroke-dasharray:5 5

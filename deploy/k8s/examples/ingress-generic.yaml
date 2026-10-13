@@ -1,0 +1,41 @@
+# OPTIONAL. Not referenced by the base, because the base assumes no particular
+# ingress controller (or any at all).
+#
+# Copy this next to your own kustomization.yaml, set the host, set the
+# ingressClassName to whatever your cluster runs, and add it to `resources`.
+#
+# With no ingress at all, reach the stack directly instead:
+#   kubectl -n elefant port-forward svc/nginx 8080:80
+# then open http://localhost:8080.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: elefant
+  annotations:
+    # cert-manager users: uncomment, name your issuer, and uncomment spec.tls.
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+    {}
+spec:
+  # `kubectl get ingressclass` lists what this cluster has. Common values:
+  # nginx, traefik, alb.
+  ingressClassName: nginx
+
+  # Uncomment ONLY if your controller issues or is given a certificate for this
+  # host. An unfulfilled tls block usually means the controller serves its own
+  # self-signed default, which looks like a broken certificate rather than a
+  # missing one.
+  # tls:
+  #   - hosts: [elefant.example.com]
+  #     secretName: elefant-tls
+
+  rules:
+    - host: elefant.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: nginx
+                port:
+                  number: 80

@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: mcp
+  template:
+    metadata:
+      labels:
+        app: mcp
+    spec:
+      enableServiceLinks: false
+      # Non-root, matching the image's own USER (10001).
+      # It writes nothing to disk.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: mcp
+          image: ghcr.io/zennthic/elefant/mcp
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+          ports:
+            - name: http
+              containerPort: 8003
+          env:
+            - name: EMBEDDER_URL
+              value: http://embedder:8001
+            - name: MEMORY_API_URL
+              value: http://memory-api:8002
+            - name: EDITOR_URL
+              value: http://editor:8080
+            # The diagram validator checks every diagram write; the optional
+            # renderer draws images (and validates too). "" turns a lookup off.
+            # With neither, writes are refused unless DIAGRAM_ALLOW_UNVALIDATED
+            # is "true".
+            - name: DIAGRAM_VALIDATOR_URL
+              value: http://diagram-validator:8005
+            - name: DIAGRAM_RENDERER_URL
+              value: http://diagram-renderer:8004
+            - name: ELEFANT_PUBLIC_DOMAIN
+              valueFrom:
+                configMapKeyRef: {name: elefant-config, key: ELEFANT_PUBLIC_DOMAIN}
+            - name: EXTERNAL_MCP_URL
+              value: https://$(ELEFANT_PUBLIC_DOMAIN)/mcp
+            - name: EXTERNAL_EDITOR_URL
+              value: https://$(ELEFANT_PUBLIC_DOMAIN)/editor
+            - name: INTERNAL_SERVICE_TOKEN
+              valueFrom:
+                secretKeyRef: {name: elefant-secrets, key: ELEFANT_INTERNAL_SERVICE_TOKEN}
+            - name: ELEFANT_MCP_RATE_LIMIT_RPM
+              valueFrom:
+                configMapKeyRef: {name: elefant-config, key: ELEFANT_MCP_RATE_LIMIT_RPM}
+            - name: ELEFANT_MCP_RATE_LIMIT_RPD
+              valueFrom:
+                configMapKeyRef: {name: elefant-config, key: ELEFANT_MCP_RATE_LIMIT_RPD}
+          # TCP. The server now has an unauthenticated /health (card #300,
+          # probed by the Compose healthcheck) that answers without I/O; moving
+          # these probes to httpGet /health is a follow-up, not done here.
+          livenessProbe:
+            tcpSocket: {port: http}
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            failureThreshold: 6
+          readinessProbe:
+            tcpSocket: {port: http}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 5
+          resources:
+            requests: {cpu: 50m,  memory: 128Mi}
+            limits:   {cpu: "1",  memory: 512Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp
+spec:
+  type: ClusterIP
+  selector:
+    app: mcp
+  ports:
+    - name: http
+      port: 8003
+      targetPort: http

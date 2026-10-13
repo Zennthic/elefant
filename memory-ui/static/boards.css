@@ -1,0 +1,513 @@
+/* Native Board tab styles. Everything is scoped under #boards-root so the
+   board's element classes (.btn, .card, .modal, …) never collide with the
+   memory-ui SPA's. Ported from the retired /editor/board.html.
+
+   Colours come from the shared tokens in appearance.css, like every other
+   page. The board used to carry a private --b-* palette of its own, which is
+   how it drifted into a different dark theme from the SPA around it.
+
+   Three states are told apart by colour, and each is also told by a dot and a
+   word so it survives colour blindness:
+     --success   the source dot's "written by an agent"
+     --danger    blocked
+     --warning   UNDER EVALUATION. Amber, deliberately neither of the other
+                 two: a locked card is not healthy-and-idle and not broken, it
+                 is busy, and it has to be told apart from both at a glance. */
+
+#boards-root {
+  /* Fill the tab panel by FLEX, not by height:100%. Every other tab fills with
+     flex + an overflow-y:auto body; Board was the only one resolving a
+     percentage height against a flex-sized parent, which engines disagree
+     about — where it resolves to `auto` the board grows to its natural height,
+     pushes the shell past the viewport and takes the app header up with it on
+     scroll. min-height:0 is the other half: without it a flex item refuses to
+     shrink below its content, so the inner scrollers never get to do their job. */
+  flex:1 1 auto; min-width:0; min-height:0; width:100%;
+  display:flex; flex-direction:column; overflow:hidden;
+  background:var(--bg); color:var(--text);
+}
+
+#boards-root * { box-sizing:border-box; }
+
+#boards-root .b-topbar {
+  display:flex; align-items:center; gap:10px; padding:10px 16px;
+  background:var(--panel); border-bottom:1px solid var(--line); flex:0 0 auto; flex-wrap:wrap;
+}
+#boards-root .b-topbar .b-heading { font-weight:600; color:var(--text); }
+#boards-root .b-search {
+  background:var(--field); border:1px solid var(--line); color:var(--text);
+  padding:7px 11px; border-radius:var(--radius-sm); font-size:13px; width:220px;
+}
+#boards-root .b-search:focus { outline:none; border-color:var(--accent); }
+#boards-root .b-spacer { margin-left:auto; }
+
+#boards-root .b-btn {
+  border:1px solid var(--line); background:var(--raised); color:var(--text);
+  padding:7px 13px; border-radius:var(--radius-sm); font-size:12.5px; cursor:pointer;
+  transition:background .15s, border-color .15s, color .15s; font-weight:550;
+}
+#boards-root .b-btn:hover { border-color:var(--accent); color:var(--accent); }
+#boards-root .b-btn-primary { background:var(--accent); color:var(--on-accent); border-color:var(--accent); }
+#boards-root .b-btn-primary:hover { background:var(--accent-hover); border-color:var(--accent-hover); color:var(--on-accent); }
+#boards-root .b-btn-secondary:hover { background:var(--raised); }
+#boards-root .b-btn-danger { color:var(--danger); border-color:var(--danger); }
+#boards-root .b-btn-danger:hover { background:var(--dangerbg); }
+#boards-root .b-btn-sm { padding:4px 9px; font-size:12px; border-radius:var(--radius-sm); }
+#boards-root .b-btn-ghost { border-color:transparent; background:transparent; color:var(--muted); padding:3px 7px; }
+#boards-root .b-btn-ghost:hover { background:var(--raised); color:var(--text); transform:none; }
+#boards-root .b-btn.active { background:var(--accentbg); color:var(--accent); border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent); }
+
+#boards-root .b-alerts { position:fixed; top:64px; right:16px; z-index:60; max-width:380px; }
+#boards-root .b-alert { padding:9px 13px; border-radius:var(--radius-sm); font-size:13px; margin-bottom:8px; border:1px solid var(--line); box-shadow:var(--shadow-md); }
+#boards-root .b-alert-success { background:var(--successbg); border-color:var(--success); color:var(--success); }
+#boards-root .b-alert-error   { background:var(--dangerbg); border-color:var(--danger); color:var(--danger); }
+#boards-root .b-alert-info    { background:var(--accentbg); border-color:var(--accent); color:var(--accent); }
+
+#boards-root .b-filterbar { display:none; align-items:center; gap:8px; padding:6px 16px; background:var(--panel);
+  border-bottom:1px solid var(--line); font-size:12px; color:var(--muted); flex:0 0 auto; }
+#boards-root .b-filterbar.on { display:flex; }
+#boards-root .b-filter-chip { background:var(--raised); border:1px solid var(--accent); color:var(--accent-hover);
+  padding:2px 8px; border-radius:10px; display:inline-flex; gap:6px; align-items:center; }
+#boards-root .b-filter-chip .x { cursor:pointer; font-weight:700; }
+
+#boards-root .b-board { flex:1 1 auto; display:flex; gap:16px; align-items:flex-start; overflow-x:auto; overflow-y:hidden; padding:16px; }
+#boards-root .b-empty { color:var(--muted); padding:40px; margin:auto; text-align:center; }
+#boards-root .b-column {
+  /* A lane, one step DOWN the surface ladder (the stage), so the cards
+     sitting in it read as lifted. The 3px top edge is the column's colour —
+     thin everywhere, thick where the colour means something. */
+  background:var(--stage); border:1px solid var(--line); border-radius:var(--radius);
+  width:300px; min-width:300px; display:flex; flex-direction:column;
+  max-height:100%; border-top:3px solid var(--line);
+}
+#boards-root .b-column-header { padding:11px 13px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:8px; cursor:grab; }
+#boards-root .b-column-header:active { cursor:grabbing; }
+#boards-root .b-column-title { display:flex; flex-direction:column; gap:1px; min-width:0; flex:1; }
+#boards-root .b-column-name { font-weight:650; font-size:13.5px; letter-spacing:-0.01em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#boards-root .b-column-stage { font-size:10px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; }
+#boards-root .b-column-count { font-size:11px; color:var(--muted); background:var(--raised); border-radius:10px; padding:1px 8px; }
+#boards-root .b-column-cards { padding:10px; overflow-y:auto; flex:1; min-height:56px; display:flex; flex-direction:column; gap:10px; }
+#boards-root .b-col-add { margin:0 10px 10px; }
+
+/* ── The Closed column ──
+   A view of the cards taken off the board, not a board_columns row. It reads
+   as part of the board but is visibly set apart — dashed edge, muted, no
+   accent stripe — because nothing in it is work you can pick up, and its
+   header does not grab like the draggable ones. Its cards live under their own
+   class, which is what keeps Sortable from treating it as a drop target. */
+#boards-root .b-column-closed {
+  border-style:dashed; border-top:3px dashed var(--line); background:transparent;
+}
+#boards-root .b-column-closed .b-column-header { cursor:default; }
+#boards-root .b-column-closed .b-column-name { color:var(--muted); }
+#boards-root .b-closed-cards { padding:10px; overflow-y:auto; flex:1; min-height:56px; display:flex; flex-direction:column; gap:10px; }
+#boards-root .b-empty-col { color:var(--muted); font-size:12px; text-align:center; padding:18px 8px; }
+
+#boards-root .b-card {
+  background:var(--panel); border:1px solid var(--line); border-radius:var(--radius-md);
+  /* max-height has grown once per optional row. A card carrying labels, a repo
+     AND tags needs the room or the bottom row is clipped out of sight, and the
+     one clipped is whichever renders last — so the cap tracks the rows, not a
+     round number that looked fine on the card in front of us. */
+  padding:11px 12px; cursor:grab; height:auto; min-height:96px; max-height:194px; overflow:hidden;
+  position:relative; display:flex; flex-direction:column; gap:6px; box-shadow: var(--shadow-sm);
+}
+#boards-root .b-card:active { cursor:grabbing; }
+#boards-root .b-card:hover { border-color:var(--line-strong); box-shadow:var(--shadow); }
+#boards-root .b-card.closed { opacity:.6; cursor:default; }
+#boards-root .b-card-head { display:flex; align-items:flex-start; gap:7px; }
+/* The number is the card's permanent identity, so it reads like the slug chip
+   (monospace, muted) rather than competing with the title. Top-right, pinned by
+   margin-left:auto so it stays there however long the title wraps, and
+   flex:0 0 auto so a long title cannot squeeze it out. */
+#boards-root .b-card-number { font-family:var(--font-mono); font-size:11px; color:var(--muted);
+  margin-left:auto; flex:0 0 auto; cursor:pointer; padding:0 2px; border-radius:4px; }
+#boards-root .b-card-number:hover { color:var(--accent); background:var(--raised); }
+#boards-root .b-card-title { font-weight:600; font-size:13px; line-height:1.3; flex:1;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+#boards-root .b-card-body { font-size:12px; color:var(--muted); flex:1; overflow:hidden; white-space:pre-wrap; line-height:1.35; }
+/* Labels are a card's one classification row. The outlined square-ish chip is
+   held over from when it had to be told apart at a glance from a second,
+   rounder tag chip sitting under it — there is only one row now, but the shape
+   is what people already read as "label", so it stays. */
+#boards-root .b-card-labels { display:flex; flex-wrap:wrap; gap:4px; }
+#boards-root .b-card-label { font-size:10px; font-weight:600; letter-spacing:.02em; color:var(--success);
+  background:transparent; border:1px solid var(--success); padding:0 5px; border-radius:4px; cursor:pointer;
+  max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#boards-root .b-card-label:hover { background:var(--raised); }
+/* The repo IDENTIFIES a card's work rather than classifying it, so it reads
+   like the slug chip (monospace, muted) and not like a label chip. The full
+   value is on the title attribute, since a long owner/name will truncate. */
+#boards-root .b-card-repo { font-family:var(--font-mono); font-size:10px; color:var(--muted);
+  cursor:pointer; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#boards-root .b-card-repo:hover { color:var(--accent); }
+/* People are a THIRD shape again — a filled pill, so a card's three chip rows
+   (who, what kind, where) are distinguishable without reading any of them.
+   The reporter leads with a small "R" mark and a stronger fill: "whose card is
+   this" is the question the row exists to answer, and a reporter that looked
+   like just another participant would bury it. A reference the directory can
+   no longer name still renders, in muted italics, because a card must keep
+   saying who raised it after that person has gone. */
+#boards-root .b-card-people { display:flex; flex-wrap:wrap; gap:4px; align-items:center; }
+#boards-root .b-card-person { display:inline-flex; align-items:center; gap:3px; font-size:10px;
+  color:var(--text); background:var(--raised); border:1px solid var(--line);
+  padding:0 6px; border-radius:9px; cursor:pointer;
+  max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#boards-root .b-card-person:hover { border-color:var(--accent); color:var(--accent); }
+#boards-root .b-card-person.reporter { background:var(--accentbg); border-color:transparent; }
+/* The assignee is the one you scan a column for — who has this — so it is the
+   loudest of the three, in the OK colour rather than the accent the reporter
+   uses. Two roles sharing one treatment would blur the distinction the field
+   was added to make: who raised it and who is doing it are different, and
+   often different people. */
+#boards-root .b-card-person.assignee { background:var(--successbg); border-color:transparent;
+  font-weight:600; }
+#boards-root .b-person-mark { font-size:8px; font-weight:700; letter-spacing:.04em; color:var(--accent-hover);
+  border:1px solid var(--accent-hover); border-radius:3px; padding:0 2px; line-height:1.3; }
+#boards-root .b-card-person.assignee .b-person-mark { color:var(--success); border-color:var(--success); }
+/* Blocked is not another attribute of the card, it is a statement about whether
+   you can start it, so it does not join the chip rows — it sits directly under
+   the body as a banner, in the danger colour, with a left rule so a blocked card
+   is identifiable while scanning a column without reading a word of it.
+
+   A blocked card deliberately does NOT move to a Blocked column (the design is
+   explicit: it carries a flag and stays where it is), which is exactly why the
+   marker has to be this loud. Nothing else about the card's position says it.
+   The blocker is NAMED and clickable, because the useful next move is to open
+   it — very often to work it instead. */
+#boards-root .b-card.blocked { border-left:3px solid var(--danger); }
+#boards-root .b-card-blocked { display:flex; flex-wrap:wrap; align-items:center; gap:4px;
+  font-size:10px; color:var(--danger); background:var(--dangerbg);
+  border-radius:var(--radius-xs); padding:2px 6px; line-height:1.5; }
+#boards-root .b-blocked-mark { font-size:9px; line-height:1; }
+#boards-root .b-blocker { font-family:var(--font-mono); font-weight:600; color:var(--danger);
+  border-bottom:1px dotted var(--danger); cursor:pointer;
+  max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#boards-root .b-blocker:hover { color:var(--accent); border-bottom-color:var(--accent); }
+/* ── Due date ──────────────────────────────────────────────────────────────
+   A compact chip in the card foot. Plain when there is time, amber within a
+   week, red once it has passed. As with blocked and under-evaluation, the
+   colour is never the only signal: an overdue chip also says "overdue", and
+   the full date and the days left are on its title. */
+#boards-root .b-card-due { display:inline-flex; align-items:center; gap:3px; font-size:10px;
+  color:var(--muted); border:1px solid var(--line); padding:0 6px; border-radius:9px;
+  white-space:nowrap; flex:0 0 auto; }
+#boards-root .b-due-mark { font-size:9px; line-height:1; }
+#boards-root .b-card-due.soon { color:var(--warning); background:var(--warningbg); border-color:var(--warning); }
+#boards-root .b-card-due.overdue { color:var(--danger); background:var(--dangerbg); border-color:var(--danger); font-weight:600; }
+#boards-root .b-card-due.done { opacity:.7; }
+#boards-root .b-due-row { display:flex; gap:6px; align-items:center; }
+#boards-root .b-due-input { flex:1; min-width:0; background:var(--field); border:1px solid var(--line);
+  color:var(--text); padding:6px 8px; border-radius:var(--radius-sm); font:inherit; color-scheme:light dark; }
+#boards-root .b-due-state.soon { color:var(--warning); }
+#boards-root .b-due-state.overdue { color:var(--danger); font-weight:600; }
+/* ── Under evaluation ──────────────────────────────────────────────────────
+   An automated reviewer holds this card's evaluation lock. Same vocabulary as
+   the blocked chip above (edge on the card, chip in the body) because it is the
+   same KIND of fact -- a reason not to start this card -- and a second visual
+   language for it would just have to be learned.
+   Told THREE ways on purpose, because one is not enough for any of them:
+   colour alone fails a colour-blind reader, a 9px dot alone is not legible
+   while scanning a column, and a hover title alone does not exist on a touch
+   screen. The word is what makes it unambiguous; the dot and the edge are what
+   make it catch the eye. */
+#boards-root .b-card.under-eval { border-left:3px solid var(--warning); }
+#boards-root .b-card-eval { display:flex; align-items:center; gap:4px;
+  font-size:10px; color:var(--warning); background:var(--warningbg);
+  border-radius:var(--radius-xs); padding:2px 6px; line-height:1.5;
+  text-transform:uppercase; letter-spacing:.04em; }
+#boards-root .b-eval-mark { font-size:9px; line-height:1; }
+#boards-root .b-eval-stale { opacity:.85; font-style:italic; text-transform:none;
+  letter-spacing:0; }
+/* The status dot in the card head, while the lock is held. A ring as well as a
+   colour: the dot is 9px, and at that size a hue change on its own is easy to
+   miss and impossible for some readers to see at all. */
+#boards-root .b-src-eval { background:var(--warning);
+  box-shadow:0 0 0 2px var(--warningline);
+  animation:b-eval-pulse 1.8s ease-in-out infinite; }
+/* The pulse says "something is happening right now", which is the one thing a
+   static treatment cannot say and the whole difference between this state and
+   the others. */
+@keyframes b-eval-pulse {
+  0%, 100% { box-shadow:0 0 0 2px var(--warningline); }
+  50%      { box-shadow:0 0 0 4px var(--warningbg); }
+}
+/* Motion is the ONE of the three signals that is optional, so it is the one
+   dropped here. The colour, the ring, the edge and the word all remain, which
+   is why honouring the preference costs no legibility. */
+@media (prefers-reduced-motion: reduce) {
+  #boards-root .b-src-eval { animation:none; }
+}
+/* The relationship editor inside the card modal. Same chip vocabulary as the
+   wiki thread above it, so the two read as one list of things attached to the
+   card rather than two unrelated widgets. */
+#boards-root .b-rel-group { margin-bottom:6px; }
+#boards-root .b-rel-label { font-size:10px; color:var(--muted); text-transform:uppercase;
+  letter-spacing:.04em; margin-bottom:3px; }
+#boards-root .b-rel-chips { display:flex; flex-wrap:wrap; gap:6px; }
+#boards-root .b-rel-chip.blocking { border-color:var(--danger); color:var(--danger-hover); }
+#boards-root .b-rel-done { text-decoration:line-through; opacity:.6; }
+/* The relationship kind used to be a native <select>. Its popup list is drawn
+   by the OS, so it ignored the board's CSS and rendered unreadably for at least
+   one user. Three options never needed a menu: segmented buttons keep the
+   control inside our own stylesheet, show the current kind without opening
+   anything, and leave the card input the rest of the row. */
+#boards-root .b-seg { display:inline-flex; flex:0 0 auto; border:1px solid var(--line);
+  border-radius:var(--radius-sm); overflow:hidden; }
+#boards-root .b-seg button { background:var(--field); color:var(--muted); border:none;
+  border-right:1px solid var(--line); padding:5px 8px; font-size:11px; font-family:inherit;
+  cursor:pointer; white-space:nowrap; }
+#boards-root .b-seg button:last-child { border-right:none; }
+#boards-root .b-seg button:hover { color:var(--text); }
+#boards-root .b-seg button.sel { background:var(--accent); color:var(--on-accent); }
+#boards-root .b-seg button:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; }
+/* The card type-ahead. It overlays whatever is below it inside a modal that
+   scrolls, so it is absolutely positioned against .b-ta-wrap and capped in
+   height — a long result list must not stretch the modal or push the Link
+   button off the bottom. */
+/* A people field: chips and their input inside one box, so it reads as a
+   single control rather than a list next to a search. The box is what the
+   suggestion list hangs off, so it is the positioned parent. */
+#boards-root .b-people { position:relative; display:flex; flex-wrap:wrap; align-items:center;
+  gap:4px; background:var(--field); border:1px solid var(--line);
+  border-radius:var(--radius-sm); padding:5px 6px; }
+#boards-root .b-people:focus-within { border-color:var(--accent); box-shadow: 0 0 0 3px var(--accentbg); }
+#boards-root .b-people-chips { display:contents; }
+#boards-root .b-people-input { flex:1; min-width:90px; background:none; border:none;
+  color:var(--text); font-family:inherit; font-size:13px; padding:2px; }
+#boards-root .b-people-input:focus { outline:none; }
+#boards-root .b-person-chip { display:inline-flex; align-items:center; gap:4px; font-size:11px;
+  background:var(--accentbg); color:var(--text); border-radius:9px; padding:1px 4px 1px 8px;
+  max-width:100%; overflow:hidden; }
+#boards-root .b-person-chip.agent { background:var(--successbg); }
+/* Somebody the directory no longer offers still has to render — a card keeps
+   naming them, and a blank chip would say it names nobody. */
+#boards-root .b-person-chip.gone { opacity:.65; font-style:italic; }
+#boards-root .b-person-chip .x { cursor:pointer; color:var(--muted); font-size:12px; line-height:1;
+  padding:0 2px; }
+#boards-root .b-person-chip .x:hover { color:var(--danger-hover); }
+/* A label pill in the editor. Shaped like the chip the same label renders as
+   on the card — square-ish and outlined — so the thing you are editing looks
+   like the thing you will see, rather than borrowing the person chip's round
+   soft form and reading as somebody's name. */
+#boards-root .b-label-chip { display:inline-flex; align-items:center; gap:4px; font-size:11px;
+  font-weight:600; letter-spacing:.02em; color:var(--success); background:transparent;
+  border:1px solid var(--success); border-radius:4px; padding:0 3px 0 5px;
+  max-width:100%; overflow:hidden; }
+/* A label the BOARD set, not one the user chose. Marked so that removing it
+   reads as a deliberate act — it is removable like any other, and the server
+   only re-attaches one that a whole-list replace failed to mention. */
+#boards-root .b-label-chip.reserved { color:var(--accent-hover); border-color:var(--accent);
+  border-style:dashed; }
+#boards-root .b-label-chip .x { cursor:pointer; color:var(--muted); font-size:12px; line-height:1;
+  padding:0 2px; }
+#boards-root .b-label-chip .x:hover { color:var(--danger-hover); }
+/* The floor that makes the row wrap instead of crushing the field: below this
+   the wrapper takes its own line, where it gets the full width. */
+#boards-root .b-ta-wrap { min-width:170px; }
+#boards-root .b-ta-results { position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:5;
+  background:var(--panel); border:1px solid var(--line); border-radius:var(--radius-sm);
+  max-height:180px; overflow-y:auto; box-shadow: var(--shadow-md); }
+#boards-root .b-ta-row { display:flex; align-items:center; gap:6px; padding:6px 8px;
+  font-size:12px; cursor:pointer; border-bottom:1px solid var(--line); }
+#boards-root .b-ta-row:last-child { border-bottom:none; }
+#boards-root .b-ta-row:hover, #boards-root .b-ta-row.active { background:var(--field); }
+#boards-root .b-ta-num { font-family:monospace; font-size:11px; color:var(--accent); flex:0 0 auto; }
+#boards-root .b-ta-title { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+/* An already-linked card stays visible — "it is already on" is the answer to
+   why it is not in the results, and hiding it just looks like search missed. */
+#boards-root .b-ta-row.linked { opacity:.5; cursor:default; }
+#boards-root .b-ta-tag { margin-left:auto; font-size:9px; text-transform:uppercase;
+  letter-spacing:.04em; color:var(--muted); flex:0 0 auto; }
+#boards-root .b-ta-empty { padding:8px; font-size:12px; color:var(--muted); }
+#boards-root .b-card-foot { display:flex; align-items:center; justify-content:space-between; gap:6px; margin-top:auto; }
+#boards-root .b-slug-chip { font-family:monospace; font-size:10px; color:var(--accent); background:var(--accentbg);
+  padding:1px 6px; border-radius:var(--radius-sm); max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+/* A COUNT on the sticky, never the text. "3 comments" is useful while scanning
+   a column; the conversation itself would drown it. */
+#boards-root .b-comment-count { font-size:10px; color:var(--muted); flex:0 0 auto; }
+#boards-root .b-src-dot { width:9px; height:9px; border-radius:50%; flex:0 0 auto; margin-top:3px; }
+#boards-root .b-src-ui { background:var(--accent); }
+#boards-root .b-src-agent { background:var(--success); }
+#boards-root .sortable-ghost { opacity:.35; }
+/* On touch a card only becomes movable after a press-and-hold, and Sortable
+   applies this class at exactly the moment the hold arms the drag. So it is not
+   decoration: it is the answer to "did my hold work, or is this gesture just
+   failing?". It has to read as the card coming off the board — lift, scale and
+   an accent edge — rather than as a subtle hover. */
+#boards-root .sortable-chosen {
+  border-color:var(--accent); transform:scale(1.03);
+  box-shadow: var(--shadow-md); transition:transform .12s ease, box-shadow .12s ease;
+}
+#boards-root .sortable-drag { box-shadow: var(--shadow-md); }
+@media (prefers-reduced-motion: reduce) {
+  #boards-root .sortable-chosen { transform:none; transition:none; }
+}
+
+/* Modals — position:fixed overlays the whole viewport; scoped classes only. */
+#boards-root .b-modal-overlay { position:fixed; inset:0; background:var(--overlay); display:none; align-items:center; justify-content:center; z-index:80; }
+#boards-root .b-modal-overlay.open { display:flex; }
+#boards-root .b-modal { background:var(--panel); border:1px solid var(--line); border-radius:var(--radius-lg); padding:24px; box-shadow:var(--shadow-lg); width:460px; max-width:92vw; max-height:90vh; overflow-y:auto; }
+#boards-root .b-modal h3 { margin:0 0 14px; font-size:17px; }
+/* The open card's number chip. Leads the modal header, so it lands top-left —
+   the mirror of the tile's chip, which sits top-right. Monospace and muted
+   like the tile's so the two read as the same handle, sized up to match the
+   heading it sits in. `hidden` has to win over the inline-block here, or a
+   card written before the number backfill shows an empty chip. */
+/* Auto-save feedback. With no Save button left, this line is the only thing
+   telling the operator their edit landed — so it sits where the Save button
+   used to, and an error has to be legible rather than a colour cue alone. */
+/* The column picker matches the rail's text inputs rather than the browser's
+   default select, which is a different height and colour in every theme. */
+/* Sits under the repo input rather than replacing it: the field still has to be
+   editable, so the link is the second affordance, not the control. */
+#boards-root .b-ec-repo-link { display:block; margin-top:6px; font-size:12px; color:var(--accent); text-decoration:none; }
+#boards-root .b-ec-repo-link:hover { text-decoration:underline; }
+#boards-root .b-ec-repo-link[hidden] { display:none; }
+#boards-root .b-ec-select { width:100%; background:var(--field); border:1px solid var(--line);
+  color:var(--text); padding:6px 8px; border-radius:var(--radius-sm); font-size:13px; }
+#boards-root .b-ec-status { font-size:12px; color:var(--muted); margin-right:8px; align-self:center; }
+#boards-root .b-ec-status.ok { color:var(--success); }
+#boards-root .b-ec-status.err { color:var(--danger); font-weight:600; }
+#boards-root .b-ec-number { font-family:monospace; font-size:13px; color:var(--muted);
+  display:inline-block; margin-right:8px; cursor:pointer; padding:0 4px; border-radius:4px;
+  vertical-align:middle; }
+#boards-root .b-ec-number:hover { color:var(--accent); background:var(--raised); }
+#boards-root .b-ec-number[hidden] { display:none; }
+#boards-root .b-modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:18px; align-items:flex-end; }
+#boards-root .b-modal-actions .spread { margin-right:auto; }
+/* Bottom left of the card: the destructive action, with the card's timestamps
+   beneath it. Reference, not something to act on — so it is muted, small, and
+   below the button rather than beside it. */
+#boards-root .b-ec-foot { display:flex; flex-direction:column; align-items:flex-start; gap:8px; min-width:0; }
+#boards-root .b-ec-times { display:flex; flex-direction:column; gap:1px; }
+#boards-root .b-ec-time { font-size:11px; color:var(--muted); display:flex; gap:6px; }
+#boards-root .b-ec-time-label {
+  min-width:52px; text-transform:uppercase; letter-spacing:.04em; font-size:10px;
+  opacity:.8; align-self:center;
+}
+#boards-root .b-form-group { margin-bottom:14px; }
+#boards-root .b-form-group label { display:block; font-size:12px; color:var(--muted); margin-bottom:5px; }
+#boards-root .b-form-group input, #boards-root .b-form-group textarea, #boards-root .b-form-group select {
+  width:100%; background:var(--field); border:1px solid var(--line); color:var(--text);
+  padding:9px 11px; border-radius:var(--radius-sm); font-size:13px; font-family:inherit;
+}
+#boards-root .b-form-group textarea { resize:vertical; min-height:70px; }
+#boards-root .b-form-group input:focus, #boards-root .b-form-group textarea:focus, #boards-root .b-form-group select:focus { outline:none; border-color:var(--accent); box-shadow: 0 0 0 3px var(--accentbg); }
+/* The edit-card modal splits: content you read on the left, metadata you set
+   once and then ignore on the right. At one width a repo field carries the
+   same visual weight as the description, and the card had outgrown that.
+   Scoped to .b-modal-wide so the column and new-card modals keep the single
+   column that suits them. */
+#boards-root .b-modal.b-modal-wide { width:min(1040px, 94vw); max-width:94vw; }
+#boards-root .b-ec-split { display:grid; grid-template-columns:minmax(0,1fr) 260px;
+  gap:18px; align-items:start; }
+/* align-items:start is load-bearing: stretched, the rail grows to match a long
+   description and its divider implies content that is not there. It also keeps
+   the modal's single scroll region — the taller column sets the height, and
+   nothing nests its own scrollbar inside it. */
+#boards-root .b-ec-rail { border-left:1px solid var(--line); padding-left:16px; }
+#boards-root .b-ec-main > .b-form-group:first-child,
+#boards-root .b-ec-rail > .b-form-group:first-child { margin-top:0; }
+/* The board is genuinely used from a phone — the touch-drag arming exists
+   because of that — so this is a real path rather than a checkbox. One column,
+   and the metadata goes BELOW the content: the first thing on a small screen
+   should be what the card says, not its labels. The rail is already second in
+   the DOM, so the single column puts it there without reordering. */
+@media (max-width: 720px) {
+  #boards-root .b-ec-split { grid-template-columns:minmax(0,1fr); gap:0; }
+  #boards-root .b-ec-rail { border-left:none; border-top:1px solid var(--line);
+    padding-left:0; padding-top:14px; }
+}
+/* The description is the part of a card you actually read, and it had the same
+   small box every other field got. The wide modal is what makes room for it. */
+#boards-root .b-md-tabs { margin-bottom:6px; }
+/* Room to write in, and a corner to drag for more. A description is a tracked
+   issue's text now, not a one-liner, and a four-line window made writing one
+   an exercise in scrolling. `resize:vertical` rather than `both`: horizontal
+   dragging would push it out of the modal's grid column. */
+#boards-root textarea.b-md-editor {
+  min-height:340px; resize:vertical; font-family:inherit; line-height:1.5;
+}
+/* The quick-add modal is 460px wide and scrolls, so the open card's height
+   would push Labels, Repo and the people fields below the fold on the one
+   flow that exists to be fast. Bigger than it was, draggable for more, and
+   the open card is where a long description gets written properly. */
+#boards-root textarea.b-quick-editor {
+  min-height:150px; resize:vertical; font-family:inherit; line-height:1.5;
+}
+/* The preview stands where the editor stands, so switching does not move the
+   rest of the modal under the pointer. */
+#boards-root .b-md-preview { min-height:340px; background:var(--field);
+  border:1px solid var(--line); border-radius:var(--radius-sm); padding:10px 12px; font-size:13px;
+  line-height:1.55; overflow-wrap:anywhere; }
+/* The quick-add form's preview matches its smaller editor, so switching tabs
+   there does not shove the rest of the form down either. */
+#boards-root .b-md-preview.b-quick-preview { min-height:150px; }
+/* The textarea's suggestion list hangs off this rather than off the form
+   group, so it lands under the editor rather than under the whole field. */
+#boards-root .b-md-wrap { position:relative; }
+/* A mention inside prose is the same chip as one in a people field, so the two
+   read as the same fact stated in two places. */
+#boards-root .b-mention { font-size:inherit; padding:0 5px; vertical-align:baseline; }
+/* Mentioning somebody does not put them on the card. This is where that is
+   OFFERED instead — one line, and ignoring it changes nothing. */
+#boards-root .b-mention-offer { display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  margin-top:6px; font-size:12px; color:var(--muted); }
+#boards-root .b-attach-chip a { color:var(--accent); text-decoration:none; }
+#boards-root .b-attach-chip a:hover { text-decoration:underline; }
+/* A pasted screenshot has to fit the column it was pasted into rather than
+   setting the modal's width from its own pixel size. */
+#boards-root .b-md-preview img { max-width:100%; height:auto; border-radius:var(--radius-sm);
+  border:1px solid var(--line); display:block; margin:4px 0 8px; }
+#boards-root .b-md-preview > :first-child { margin-top:0; }
+#boards-root .b-md-preview > :last-child { margin-bottom:0; }
+#boards-root .b-md-preview h1, #boards-root .b-md-preview h2, #boards-root .b-md-preview h3,
+#boards-root .b-md-preview h4 { font-size:14px; margin:12px 0 6px; }
+#boards-root .b-md-preview p, #boards-root .b-md-preview ul, #boards-root .b-md-preview ol { margin:0 0 8px; }
+#boards-root .b-md-preview code { font-family:ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size:12px; background:var(--raised); padding:1px 4px; border-radius:4px; }
+/* A fenced block SCROLLS rather than wraps: a quoted stack trace or a path is
+   read by its lines, and re-wrapping one turns it into prose. */
+#boards-root .b-md-preview pre { background:var(--raised); border:1px solid var(--line);
+  border-radius:var(--radius-sm); padding:8px 10px; overflow-x:auto; margin:0 0 8px; }
+#boards-root .b-md-preview pre code { background:none; padding:0; white-space:pre; }
+#boards-root .b-md-preview blockquote { margin:0 0 8px; padding-left:10px;
+  border-left:3px solid var(--line); color:var(--muted); }
+#boards-root .b-md-preview a { color:var(--accent); }
+#boards-root .b-md-preview table { border-collapse:collapse; margin:0 0 8px; }
+#boards-root .b-md-preview th, #boards-root .b-md-preview td {
+  border:1px solid var(--line); padding:3px 7px; text-align:left; }
+/* The thread. Comments are rendered through the same markdown path as the
+   description, so they get the sanitiser and @-mentions with them. */
+#boards-root .b-comment { border-top:1px solid var(--line); padding:8px 0; }
+#boards-root .b-comment:first-child { border-top:none; padding-top:0; }
+#boards-root .b-comment.deleted { opacity:.55; }
+#boards-root .b-comment-head { display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+#boards-root .b-comment-who { font-size:12px; font-weight:600; }
+#boards-root .b-comment-when { font-size:10px; color:var(--muted); }
+#boards-root .b-comment-acts { margin-left:auto; display:flex; gap:6px; }
+#boards-root .b-comment-acts button { background:none; border:none; color:var(--muted);
+  font-size:10px; font-family:inherit; cursor:pointer; padding:0; }
+#boards-root .b-comment-acts button:hover { color:var(--accent); }
+#boards-root .b-comment-body { font-size:13px; line-height:1.5; overflow-wrap:anywhere; }
+#boards-root .b-comment-body > :first-child { margin-top:0; }
+#boards-root .b-comment-body > :last-child { margin-bottom:0; }
+#boards-root .b-comment-body p { margin:0 0 6px; }
+#boards-root .b-comment-body pre { background:var(--raised); border:1px solid var(--line);
+  border-radius:var(--radius-sm); padding:6px 8px; overflow-x:auto; margin:0 0 6px; }
+#boards-root .b-comment-body code { font-family:ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size:12px; background:var(--raised); padding:1px 4px; border-radius:4px; }
+#boards-root .b-comment-body pre code { background:none; padding:0; white-space:pre; }
+#boards-root .b-comment-body img { max-width:100%; height:auto; border-radius:var(--radius-sm); }
+#boards-root .b-comment-new { display:flex; gap:6px; align-items:flex-start; margin-top:10px; }
+#boards-root .b-comment-new textarea { flex:1; background:var(--field);
+  border:1px solid var(--line); color:var(--text); border-radius:var(--radius-sm);
+  padding:6px 8px; font-size:13px; font-family:inherit; resize:vertical; min-height:44px; }
+#boards-root .b-comment-new textarea:focus { outline:none; border-color:var(--accent);
+  box-shadow: 0 0 0 3px var(--accentbg); }
+#boards-root .b-hint { font-size:12px; color:var(--muted); margin-top:5px; }
+#boards-root .b-swatches { display:flex; gap:8px; flex-wrap:wrap; }
+#boards-root .b-swatch { width:26px; height:26px; border-radius:50%; cursor:pointer; border:2px solid transparent; }
+#boards-root .b-swatch.sel { border-color:var(--text); box-shadow:0 0 0 2px var(--bg) inset; }
+#boards-root .b-swatch.none { background:var(--field); border:2px dashed var(--line); display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:14px; }

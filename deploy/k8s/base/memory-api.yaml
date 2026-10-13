@@ -1,0 +1,95 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: memory-api
+spec:
+  replicas: 1
+  # No PVC here, so a rolling update is safe and keeps the API answering
+  # through a deploy.
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: memory-api
+  template:
+    metadata:
+      labels:
+        app: memory-api
+    spec:
+      enableServiceLinks: false
+      # Non-root, matching the image's own USER (10001).
+      # It writes nothing to disk.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: memory-api
+          image: ghcr.io/zennthic/elefant/memory-api
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+          ports:
+            - name: http
+              containerPort: 8002
+          env:
+            - name: QDRANT_HOST
+              value: qdrant
+            - name: EMBEDDER_URL
+              value: http://embedder:8001
+            - name: POSTGRES_HOST
+              value: postgres
+            - name: POSTGRES_DB
+              value: memory
+            - name: POSTGRES_USER
+              value: memory
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef: {name: elefant-secrets, key: POSTGRES_PASSWORD}
+            - name: INTERNAL_SERVICE_TOKEN
+              valueFrom:
+                secretKeyRef: {name: elefant-secrets, key: ELEFANT_INTERNAL_SERVICE_TOKEN}
+            - name: CARD_EVAL_LOCK_STALE_SECONDS
+              valueFrom:
+                configMapKeyRef: {name: elefant-config, key: ELEFANT_CARD_EVAL_LOCK_STALE_SECONDS}
+          # TCP, not httpGet /health, and this is the deliberate one.
+          #
+          # memory-api's /health is a DEPENDENCY ROLL-UP: it calls Qdrant,
+          # Postgres and the embedder, and it answers 200 either way, reporting
+          # the verdict in the body. That makes it useless as an HTTP probe —
+          # it can never fail — and actively wrong as liveness if it ever
+          # started returning 503, because a slow Postgres would then restart a
+          # perfectly healthy pod. The Compose stack ships no healthcheck here
+          # for the same reason.
+          #
+          # A TCP probe asks the one question a probe should: is this process
+          # accepting connections. Giving it a real split (/livez answering
+          # without I/O, /healthz reporting dependencies) is an app change and
+          # is filed separately; see deploy/k8s/README.md.
+          livenessProbe:
+            tcpSocket: {port: http}
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            failureThreshold: 6
+          readinessProbe:
+            tcpSocket: {port: http}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 5
+          resources:
+            requests: {cpu: 100m, memory: 192Mi}
+            limits:   {cpu: "1",  memory: 512Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: memory-api
+spec:
+  type: ClusterIP
+  selector:
+    app: memory-api
+  ports:
+    - name: http
+      port: 8002
+      targetPort: http

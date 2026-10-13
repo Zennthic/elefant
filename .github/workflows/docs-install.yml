@@ -1,0 +1,189 @@
+name: Install docs (tested)
+
+# The README's two quick starts are the install path for everybody who arrives
+# from the release video, and a README drifts silently: nothing fails when the
+# manifests move and the copy-paste block does not. So the blocks are marked in
+# the markdown and RUN here — Compose in a clean project, Kubernetes against a
+# throwaway k3d cluster — and each pass requires the same two answers a person
+# would check: `/setup` returns 200, and the OAuth discovery document is JSON.
+#
+# Separate from build-deploy.yml on purpose. This is heavier than a unit test and
+# gates nothing that deploys: a red run here means the instructions are wrong,
+# which is worth knowing loudly and is not a reason to hold the Stage.
+#
+# The fast half of the same guarantee lives in `editor/tests/test_install_docs.py`
+# and runs in the ordinary test job on every push: markers present and unique,
+# blocks parseable, no real hostnames, the canonical org path, the compose split
+# intact. That is what catches most drift; this workflow is what proves the
+# commands actually work.
+
+on:
+  # No `paths:` filter up here. Path filters on a TAG push compare against a
+  # base GitHub does not reliably have, and a release tag is precisely the run
+  # that must not be skipped — it is the version strangers will install. The
+  # `changes` job below does the filtering instead, and lets every tag through.
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+concurrency:
+  # One at a time. Both jobs bind a host port and create Docker resources on a
+  # runner that is never wiped, so two overlapping runs would fight over them.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+# Least privilege by default: every job gets a read-only token unless it
+# widens its own scope below (the install jobs add `packages: read` to pull
+# the published images). Nothing in this workflow writes.
+permissions:
+  contents: read
+
+jobs:
+
+  # ── Is there anything to check? ───────────────────────────────────────────
+  changes:
+    name: Detect doc changes
+    # Pure git and shell — no interpreter, so it needs nothing from the runner
+    # beyond a checkout.
+    runs-on: [self-hosted, macOS]
+    outputs:
+      run: ${{ steps.detect.outputs.run }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Full history, so the diff covers the whole push range rather than
+          # only the tip commit.
+          fetch-depth: 0
+
+      - name: Decide whether the install path could have moved
+        id: detect
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "run=true" >> $GITHUB_OUTPUT; echo "manual dispatch"; exit 0
+          fi
+          case "${{ github.ref }}" in
+            refs/tags/v*)
+              echo "run=true" >> $GITHUB_OUTPUT
+              echo "release tag — always checked"; exit 0 ;;
+          esac
+
+          BEFORE="${{ github.event.before }}"
+          AFTER="${{ github.event.after }}"
+          ZERO="0000000000000000000000000000000000000000"
+          if [ -n "$BEFORE" ] && [ "$BEFORE" != "$ZERO" ] \
+             && git rev-parse -q --verify "$BEFORE^{commit}" > /dev/null 2>&1; then
+            CHANGED=$(git diff --name-only "$BEFORE" "$AFTER")
+          else
+            CHANGED=$(git diff-tree --no-commit-id -r --name-only "${AFTER:-HEAD}")
+          fi
+          echo "changed in this push:"; echo "$CHANGED" | sed 's/^/  /'
+
+          # Everything the published instructions depend on. .env.example is in
+          # the list because the Compose quick start copies it and appends to it,
+          # so a renamed key there breaks the install without touching the README.
+          if echo "$CHANGED" | grep -Eq '^(README\.md|docs/install/|deploy/k8s/|docker-compose\.yml|docker-compose\.traefik\.yml|\.env\.example|nginx/|tools/doc_blocks\.py|\.github/scripts/test-install-docs\.sh|\.github/workflows/docs-install\.yml)'; then
+            echo "run=true" >> $GITHUB_OUTPUT
+          else
+            echo "run=false" >> $GITHUB_OUTPUT
+            echo "nothing the install path depends on moved"
+          fi
+
+  # ── The Docker Compose quick start, run in a clean project ────────────────
+  compose:
+    name: Compose quick start
+    needs: [changes]
+    if: needs.changes.outputs.run == 'true'
+    runs-on: [self-hosted, macOS]
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Same file-store trick as build-deploy.yml's build job, and for the same
+      # reason: this runner is headless, its login keychain is locked, and the
+      # docker CLI auto-selects the osxkeychain helper whenever config.json
+      # carries no auth. Seeding the auth directly means `docker login` is never
+      # called and the keychain is never touched. Only needed while the GHCR
+      # packages are private; with public packages the pulls are anonymous and
+      # this step is harmless.
+      - name: Docker login to ghcr.io (file store, no macOS keychain)
+        env:
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          export DOCKER_CONFIG="$RUNNER_TEMP/docker-cfg"
+          echo "DOCKER_CONFIG=$DOCKER_CONFIG" >> "$GITHUB_ENV"
+          mkdir -p "$DOCKER_CONFIG"
+          cp -R "$HOME/.docker/." "$DOCKER_CONFIG/" 2>/dev/null || true
+          python3 -c "import base64,json,os;p=os.path.join(os.environ['DOCKER_CONFIG'],'config.json');d=json.load(open(p)) if os.path.exists(p) else {};[d.pop(k,None) for k in ('credsStore','credStore','credHelpers')];a=base64.b64encode((os.environ['GHCR_USER']+':'+os.environ['GHCR_TOKEN']).encode()).decode();d.setdefault('auths',{})['ghcr.io']={'auth':a};json.dump(d,open(p,'w'));print('file-store auths now:',list(d['auths'].keys()))"
+
+      - name: Export Docker host (OrbStack socket)
+        run: echo "DOCKER_HOST=$(docker context inspect --format '{{.Endpoints.docker.Host}}')" >> $GITHUB_ENV
+
+      - name: Run the README's Compose quick start
+        env:
+          # DOCKER_CONFIG and DOCKER_HOST arrive from the two steps above via
+          # GITHUB_ENV, so they are already in this step's environment.
+          DOCS_TEST_PORT: "18321"
+          DOCS_TEST_MCP_PORT: "18322"
+        run: bash .github/scripts/test-install-docs.sh compose
+
+      # `docker compose down -v` in the script's EXIT trap covers the normal
+      # exit and a failure. A CANCELLED job kills the step without running the
+      # trap, so the project would be left running on a machine that is never
+      # wiped. This is the sweep for that.
+      - name: Sweep up a cancelled run
+        if: always()
+        run: |
+          for p in $(docker compose ls --all --format json 2>/dev/null \
+                     | python3 -c "import json,sys;print('\n'.join(x['Name'] for x in json.load(sys.stdin) if x['Name'].startswith('elefant-docstest-')))" 2>/dev/null); do
+            echo "sweeping leftover compose project $p"
+            docker compose -p "$p" down -v --remove-orphans --timeout 30 || true
+          done
+
+  # ── The Kubernetes quick start, run against a throwaway k3d cluster ───────
+  kubernetes:
+    name: Kubernetes quick start (k3d)
+    needs: [changes]
+    if: needs.changes.outputs.run == 'true'
+    runs-on: [self-hosted, macOS]
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Export Docker host (OrbStack socket)
+        run: echo "DOCKER_HOST=$(docker context inspect --format '{{.Endpoints.docker.Host}}')" >> $GITHUB_ENV
+
+      - name: Run the README's Kubernetes quick start
+        env:
+          # Handed to the CLUSTER, not to the manifests: k3d writes them into the
+          # nodes' own registries.yaml so containerd can authenticate. The
+          # documented install needs no credential at all and
+          # `deploy/k8s/base` ships no imagePullSecret. This matters only while
+          # the GHCR packages are private, and the script says where to
+          # delete it from once they are not.
+          GHCR_USERNAME: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DOCS_TEST_PORT: "18331"
+        run: bash .github/scripts/test-install-docs.sh k8s
+
+      # Same reasoning as the Compose sweep: a cancel skips the EXIT trap, and a
+      # k3d cluster left behind holds a container, a network and a volume.
+      - name: Sweep up a cancelled run
+        if: always()
+        run: |
+          # $$ here is this shell, not the script's, so the scratch directory
+          # has to be found by pattern rather than by name.
+          K3D="$(ls -1 "${TMPDIR:-/tmp}"/elefant-docs-test-*/bin/k3d 2>/dev/null | head -1)"
+          [ -n "$K3D" ] || K3D="$(command -v k3d || true)"
+          [ -n "$K3D" ] || { echo "no k3d binary to sweep with"; exit 0; }
+          for c in $("$K3D" cluster list --no-headers 2>/dev/null | awk '/^elefant-docs-/ {print $1}'); do
+            echo "sweeping leftover k3d cluster $c"
+            "$K3D" cluster delete "$c" || true
+          done

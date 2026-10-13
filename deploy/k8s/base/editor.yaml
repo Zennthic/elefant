@@ -1,0 +1,162 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: editor
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: editor
+  template:
+    metadata:
+      labels:
+        app: editor
+    spec:
+      enableServiceLinks: false
+      # Non-root, matching the image's own USER (10001).
+      # Writes only to its volumes and /tmp.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile: {type: RuntimeDefault}
+      # One-time ownership fix for volumes created before the images went
+      # non-root. fsGroup alone gives the group access, but git refuses a repo
+      # whose OWNER is another user, so this chowns whatever is not already
+      # 10001 and exits. After the first run it changes nothing. It is the only
+      # thing in the pod that runs as root, and it keeps only the capabilities
+      # a chown walk needs.
+      initContainers:
+        - name: volume-perms
+          image: ghcr.io/zennthic/elefant/editor
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -eu
+              for d in /docs /data /backend_sync; do
+                find "$d" \( ! -user 10001 -o ! -group 10001 \) -exec chown -h 10001:10001 {} +
+              done
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+            runAsNonRoot: false
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+              add: [CHOWN, DAC_READ_SEARCH, FOWNER]
+          resources:
+            requests: {cpu: 10m, memory: 16Mi}
+            limits:   {cpu: 500m, memory: 128Mi}
+          volumeMounts:
+            - name: docs
+              mountPath: /docs
+            - name: editor-data
+              mountPath: /data
+            - name: backend-sync
+              mountPath: /backend_sync
+      containers:
+        - name: editor
+          image: ghcr.io/zennthic/elefant/editor
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: DOCS_DIR
+              value: /docs
+            - name: DB_PATH
+              value: /data/config.db
+            - name: CRYPTO_KEY_PATH
+              value: /data/crypto.key
+            - name: BACKEND_READINESS_FILE
+              value: /backend_sync/ready
+            # Declared before the values that interpolate it: $(VAR) expands
+            # only from an env var defined EARLIER in this same list.
+            - name: ELEFANT_PUBLIC_DOMAIN
+              valueFrom:
+                configMapKeyRef: {name: elefant-config, key: ELEFANT_PUBLIC_DOMAIN}
+            - name: EDITOR_EXTERNAL_URL
+              value: https://$(ELEFANT_PUBLIC_DOMAIN)/editor
+            - name: SESSION_SECRET
+              valueFrom:
+                secretKeyRef: {name: elefant-secrets, key: ELEFANT_SESSION_SECRET}
+            - name: INTERNAL_SERVICE_TOKEN
+              valueFrom:
+                secretKeyRef: {name: elefant-secrets, key: ELEFANT_INTERNAL_SERVICE_TOKEN}
+            - name: APP_NAME
+              valueFrom:
+                configMapKeyRef: {name: elefant-config, key: ELEFANT_APP_NAME}
+            - name: ELEFANT_MODE
+              valueFrom:
+                configMapKeyRef: {name: elefant-config, key: ELEFANT_MODE}
+            # Deprecated spelling of ELEFANT_MODE, read only if an overlay still
+            # sets it: ELEFANT_TIER=saas means multi-org, other values are ignored.
+            - name: ELEFANT_TIER
+              valueFrom:
+                configMapKeyRef: {name: elefant-config, key: ELEFANT_TIER, optional: true}
+            - name: ELEFANT_S3_ENDPOINT_URL
+              valueFrom:
+                configMapKeyRef: {name: elefant-config, key: ELEFANT_S3_ENDPOINT_URL}
+            - name: ELEFANT_S3_REGION
+              valueFrom:
+                configMapKeyRef: {name: elefant-config, key: ELEFANT_S3_REGION}
+            - name: ELEFANT_S3_ACCESS_KEY
+              valueFrom:
+                secretKeyRef: {name: elefant-secrets, key: ELEFANT_S3_ACCESS_KEY}
+            - name: ELEFANT_S3_SECRET_KEY
+              valueFrom:
+                secretKeyRef: {name: elefant-secrets, key: ELEFANT_S3_SECRET_KEY}
+          volumeMounts:
+            - name: docs
+              mountPath: /docs
+            - name: editor-data
+              mountPath: /data
+            - name: backend-sync
+              mountPath: /backend_sync
+          # /health here is a pure handler — it returns a literal and touches
+          # no dependency — so the same path is safe for both probes. It is
+          # the endpoint the Compose healthcheck already uses.
+          livenessProbe:
+            httpGet: {path: /health, port: http}
+            initialDelaySeconds: 40
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 6
+          readinessProbe:
+            httpGet: {path: /health, port: http}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits:   {cpu: "1",  memory: 768Mi}
+      volumes:
+        - name: docs
+          persistentVolumeClaim: {claimName: docs}
+        - name: editor-data
+          persistentVolumeClaim: {claimName: editor-data}
+        - name: backend-sync
+          persistentVolumeClaim: {claimName: backend-sync}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: editor
+spec:
+  type: ClusterIP
+  selector:
+    app: editor
+  # Port 8080, not 80: nginx.conf names `editor:8080` as its upstream and that
+  # file is shared with the Compose stack, so the Service has to answer on the
+  # port the upstream asks for.
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

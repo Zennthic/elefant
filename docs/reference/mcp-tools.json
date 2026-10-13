@@ -1,0 +1,1705 @@
+{
+  "server": "knowledge-base",
+  "generated_by": "tools/publish_mcp_tools.py",
+  "note": "Generated from the registered tools. Do not edit by hand.",
+  "tools": [
+    {
+      "name": "board_columns",
+      "description": "What columns / what lists / how is the board laid out - the columns of\n    the Elefant (\"elephant\") Kanban board, left → right, with the\n    architected stage each maps to. Call this before card_add / card_move so\n    you use the user's own column names (they're arbitrary and user-defined\n    - \"Up Next\", \"Backlog\", \"Retrospective\"). Seeds the default columns on\n    first use.",
+      "inputSchema": {
+        "properties": {},
+        "title": "board_columnsArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "card_add",
+      "description": "Add / create / file / raise / open / put / stick a card, task, ticket,\n    to-do or idea on the Elefant (\"elephant\") board - the reflex when the\n    user floats an idea, proposal, or backlog item they are NOT building\n    right now. A card is a tracked issue: a title and a description,\n    organised on a board. The description has no length limit, so write what\n    the card needs. What it is still not is a document - when an idea wants\n    its own page, write the page and LINK it to the card (see below); never\n    paste a page URL into the body.\n\n    WHICH ONE OF THESE FOUR. \"Remember / save / note this\" → memory_capture.\n    \"Remember this exactly, word for word\" → memory_add. \"Note to self …\" →\n    note_to_self, which files a board card. \"Add a card / task / to-do\", or\n    an idea the user is not building right now → card_add. Longer than a\n    post-it, or reference material somebody will read later → wiki_write.\n\n    Defaults to the leftmost backlog column. The slug is derived from\n    the title when omitted and is the card's durable identity — it must be\n    unique, so a collision fails and names the holder rather than guessing.\n\n    LINKING A CARD TO WIKI PAGES — two ways, both first-class:\n      1. By convention (self-healing, preferred): write the page under\n         `<AI folder>/projects/<card-slug>/…` (e.g. `AI/projects/netdisco/\n         design.md`). Pages there are associated with the card automatically at\n         read time — renaming the card or the page never breaks the thread.\n      2. Explicitly: pass `wiki_links` here (or use `card_link_wiki` later) to\n         attach any existing wiki page, wherever it lives.\n\n    LABELS classify the card — `bug`, `enhancement`, a sprint. Free-form\n    strings, shown as chips on the card in the board UI and usable as a\n    `card_list` filter. Set them here at capture time; afterwards reach for\n    `card_label`, which adds or removes ONE without touching the rest.\n\n    REPO is the card's GitHub repository, and it is its own structured field\n    rather than a label or a line of body text. Set it whenever the card is\n    work in a known repo: several repos share one board, and the repo field is\n    what lets `card_list(repo=...)` and the board UI show one project at a\n    time. Afterwards use `card_repo` to change or clear it.\n\n    PEOPLE — reporter and participants — are resolved accounts, not names in\n    prose. **When you are filing this card because a person asked you to, pass\n    that person as `reporter`.** You are then added as a participant\n    automatically, so the card records both who wanted it and who wrote it. A\n    card you raise on your own initiative needs neither argument: it defaults\n    to you. Give a person as a username, an email, a display name, or a\n    `user:`/`agent:` reference read off another card; a name that matches\n    nobody is refused, and the error names the accounts that do exist.\n\n    Args:\n        title:  Short card title.\n        slug:   Optional stable identifier (lowercase-hyphen). Derived from the\n                title when empty. This is the key every future reference joins on.\n        body:   The card's DESCRIPTION. Markdown, including fenced code blocks,\n                renders in the board UI. No length limit — write what the card\n                needs. (The field is still called `body` on the wire; a person\n                reads it as the description.)\n        column: Optional target column — its name (from board_columns) or id.\n                Defaults to the backlog.\n        labels: Optional classification labels, e.g. [\"bug\", \"elefant\"].\n                Free-form; de-duplicated case-insensitively.\n        repo:   Optional GitHub repository this card's work belongs to. Give it\n                as `owner/name`, or paste a github.com URL and it is normalized\n                to that. One repo per card.\n        wiki_links: Optional wiki page paths to attach to the card, e.g.\n                [\"AI/projects/netdisco/design.md\"]. These show as linked pages\n                on the card in the board UI.\n        reporter: Who RAISED this card. Defaults to you. Pass the person you\n                are working with when you are filing it for them — you go on\n                the card as a participant either way.\n        assignee: Who is DOING this card. Unlike `reporter` it has no default:\n                whoever files a card is very often not whoever will do it, so\n                leaving it blank says \"unassigned\" rather than guessing. Agents\n                can be assigned.\n        participants: Other people involved in the card.\n        due:    Optional due DATE, `YYYY-MM-DD` (no time of day). Set it when\n                the card is time-bound, rather than writing the date into the\n                title or a label. Change or clear it later with `card_due`.",
+      "inputSchema": {
+        "properties": {
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "slug": {
+            "default": "",
+            "title": "Slug",
+            "type": "string"
+          },
+          "body": {
+            "default": "",
+            "title": "Body",
+            "type": "string"
+          },
+          "column": {
+            "default": "",
+            "title": "Column",
+            "type": "string"
+          },
+          "labels": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Labels"
+          },
+          "repo": {
+            "default": "",
+            "title": "Repo",
+            "type": "string"
+          },
+          "wiki_links": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Wiki Links"
+          },
+          "reporter": {
+            "default": "",
+            "title": "Reporter",
+            "type": "string"
+          },
+          "assignee": {
+            "default": "",
+            "title": "Assignee",
+            "type": "string"
+          },
+          "participants": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Participants"
+          },
+          "due": {
+            "default": "",
+            "title": "Due",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "title": "card_addArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "card_archive",
+      "description": "Archive / close / take it off the board - an Elefant board card.\n    DEPRECATED - this is `card_close` under its old name, and does exactly\n    the same thing. Prefer\n    `card_close`; this stays so a session or routine written against the old\n    name keeps working.",
+      "inputSchema": {
+        "properties": {
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug"
+        ],
+        "title": "card_archiveArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "card_assignee",
+      "description": "Assign / give it to / put me on it / who is doing it / hand it back -\n    set or clear who is DOING an Elefant board card.\n\n    Reporter says who raised a card and participants say who is involved;\n    neither answers the question a board is mostly asked. A participant list of\n    three people does not say which one has it.\n\n    One assignee per card, because two assignees is no assignee. Like every\n    other people field it is a resolved account rather than a name in prose:\n    give a username, an email, a display name, or a `user:`/`agent:` reference\n    read off another card, and anything matching nobody is refused rather than\n    stored. Agents are assignable — most of this board is agent-worked, and a\n    field that could only name humans could not say who is doing most of it.\n\n    Unlike `card_reporter` this one CAN be cleared, with `clear=True`. Who\n    raised a card is history and does not stop being true; who is doing it is a\n    present fact, and work gets handed back. An unassigned card says nobody has\n    it, which is different from nobody knowing.\n\n    Assigning somebody does not also add them to the participants — one told\n    fact writes one fact. Use `card_participant` if you mean both.\n\n    Args:\n        slug:   The card (current slug or an alias).\n        person: Who is doing it. Ignored when `clear` is set.\n        clear:  Take the assignee off, leaving the card unassigned.",
+      "inputSchema": {
+        "properties": {
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "person": {
+            "default": "",
+            "title": "Person",
+            "type": "string"
+          },
+          "clear": {
+            "default": false,
+            "title": "Clear",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "slug"
+        ],
+        "title": "card_assigneeArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "card_close",
+      "description": "Close / finish / mark done / take it off the board - close an Elefant\n    board card without deleting it (there is no card deletion - closing is\n    the terminal state). The card stays resolvable by slug, and a human can\n    reopen it from the board's Closed column.",
+      "inputSchema": {
+        "properties": {
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug"
+        ],
+        "title": "card_closeArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "card_comment",
+      "description": "Comment / say / add a note / reply / leave a message on an Elefant board\n    card - what you found, decided, or need.\n\n    A card records what the work IS. The thread is where the conversation about\n    it lives, and without one that conversation happens in a chat window and is\n    gone by the next session.\n\n    REACH FOR THIS INSTEAD OF the two things agents do otherwise: writing a\n    finding into a wiki page nobody asked for, or editing the card's\n    description to say what has happened since. The description is what the\n    work IS; what happened to it is a comment, and rewriting the first to\n    record the second loses both. \"Here is what I found, here is what I need\"\n    is a comment. So is \"blocked on a judgement call\", \"this turned\n    out to be the same bug as #57\", and \"done, but the fix needs a second pair\n    of eyes\".\n\n    You post as yourself. A comment is attributed to the account behind your\n    token, so a thread says who said what without anybody having to sign their\n    messages.\n\n    Read the thread with `card_get`, which carries it.\n\n    Args:\n        slug: The card (current slug or an alias).\n        body: What you want to say. Markdown renders in the board UI.",
+      "inputSchema": {
+        "properties": {
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "body": {
+            "title": "Body",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "body"
+        ],
+        "title": "card_commentArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "card_due",
+      "description": "Set / change / clear a due date or deadline / when is it due by - set\n    or clear when an Elefant board card is DUE.\n\n    A calendar date, `YYYY-MM-DD`, with no time of day. It shows on the card\n    in the board UI as a chip that turns amber within a week and red once it\n    has passed, and `card_list(overdue=True)` finds every late card. Set it\n    instead of writing the date into the title or a `due-…` label, which\n    nothing can sort or warn on.\n\n    A card waiting on a date usually belongs in the board's Scheduled column\n    too; moving it there is `card_move`.\n\n    Clearing is its own named action, `clear=True`, like `card_assignee`: an\n    empty `due` here is refused rather than read as \"clear\", so a due date is\n    never lost to a blank argument.\n\n    Args:\n        slug:  The card (current slug or an alias).\n        due:   The due date, e.g. \"2026-11-27\". Ignored when `clear` is set.\n        clear: Take the due date off.",
+      "inputSchema": {
+        "properties": {
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "due": {
+            "default": "",
+            "title": "Due",
+            "type": "string"
+          },
+          "clear": {
+            "default": false,
+            "title": "Clear",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "slug"
+        ],
+        "title": "card_dueArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "card_eval_lock",
+      "description": "Lock / claim / take / hold a card while something evaluates it - take\n    the evaluation lock on an Elefant board card, so nothing else evaluates\n    it at once.\n\n    This is for an automated reviewer working a column of cards: take the lock,\n    run the checks, release it. While you hold it the board shows the card as\n    under evaluation, so a human scanning it does not start working a card you\n    already have in hand, and a second run of your own is refused rather than\n    duplicating your work.\n\n    Acquire is atomic. If two runs ask at the same moment exactly one gets it\n    and the other is refused, naming the run that beat it — so a refusal is a\n    real answer (\"somebody else has this one, move on\"), not something to retry\n    around. Re-asking for a lock you already hold succeeds and changes nothing,\n    so a retried step is safe.\n\n    You do NOT need this to read a card, comment on one, or move one. Reading is\n    free: every card already carries its lock state, so `card_get` and\n    `card_list` tell you whether a card is in somebody's hands without a call.\n    Reach for this only when you are about to EVALUATE a card and want the rest\n    of the world to leave it alone while you do.\n\n    Release with `card_eval_unlock` when you are done, including when the\n    evaluation failed. A lock nobody releases is broken automatically once it is\n    old enough, on the assumption that the run holding it died, but that takes\n    half an hour during which nothing else can touch the card.\n\n    Args:\n        slug:   The card (current slug or an alias).\n        run_id: Your own handle for this evaluation run. Opaque to Elefant, which\n                only cares whether two acquires name the same one — so it has to\n                be unique per run, not per reviewer, or two of your runs would\n                each think they hold every card.",
+      "inputSchema": {
+        "properties": {
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "run_id"
+        ],
+        "title": "card_eval_lockArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "card_eval_unlock",
+      "description": "Unlock / release / let go of / hand back a card after evaluating it -\n    release the evaluation lock on an Elefant board card, clearing the\n    board's indicator.\n\n    Call this when your evaluation finishes, whichever way it went. Releasing a\n    card you never locked succeeds and changes nothing, so a cleanup path is\n    safe to run twice and safe to run after your lock was broken for being\n    stale — you do not have to check first.\n\n    You cannot release somebody else's lock. If another run holds the card this\n    is refused, naming the holder, because a release any run could call on any\n    card would not be a lock at all.\n\n    Args:\n        slug:   The card (current slug or an alias).\n        run_id: The run that holds the lock. The same one you passed to\n                `card_eval_lock`.",
+      "inputSchema": {
+        "properties": {
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "run_id"
+        ],
+        "title": "card_eval_unlockArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "card_get",
+      "description": "Open / read / show me / pull up that card or ticket - fetch one Elefant\n    board card by its slug (or any former slug - renames keep resolving).\n\n    Includes the card's wiki thread: pages associated by convention (written\n    under `<AI folder>/projects/<card-slug>/`) and any explicitly linked page,\n    the same set the board UI shows. A linked page whose target no longer exists\n    is flagged as missing.\n\n    Also names the card's people — who reported it, who is doing it and who is\n    on it — with the reference to pass back to `card_reporter`,\n    `card_assignee` or `card_participant`.\n\n    Carries the card's COMMENT THREAD, which is where the conversation about a\n    card lives: what was decided, what is blocked, what somebody needs. Read it\n    before working a card — the design note says what the work is, the thread\n    says what has happened to it since.",
+      "inputSchema": {
+        "properties": {
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug"
+        ],
+        "title": "card_getArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "card_label",
+      "description": "Label / tag / categorise / mark a card as - add ONE label to an Elefant\n    board card, or remove one; the same chips the board UI shows on the\n    card.\n\n    Labels are free-form classification: `bug`, `enhancement`, a repo name, a\n    sprint, whatever vocabulary the team already uses. There is no fixed list\n    and no need to create a label before using it. `card_list(label=...)`\n    filters on them, and `card_get` reads them back.\n\n    This edits the card's label list IN PLACE — it never replaces the whole\n    set, so labels added by a human or an earlier session survive. Adding a\n    label the card already has is a no-op, and removing one it doesn't have\n    says so rather than pretending. Matching is case-insensitive, so `Bug`\n    removes `bug`; the first spelling used is the one the card keeps.\n\n    This is also the ONLY way to take off a label the board reserves\n    (`note-to-self`). A whole-list replace through `card_update` re-attaches\n    those, so a marker cannot be lost by an agent rewriting labels for some\n    other reason; removing one here still works, because naming the single\n    label you want gone is a deliberate act rather than a side effect.\n\n    To set several at once, pass `labels` to `card_add` (at capture time) or\n    `card_update` (a deliberate full replace).\n\n    Args:\n        slug:   The card (current slug or an alias).\n        label:  The label to add or remove, e.g. \"bug\".\n        remove: Set true to take the label off instead of putting it on.",
+      "inputSchema": {
+        "properties": {
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "remove": {
+            "default": false,
+            "title": "Remove",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "slug",
+          "label"
+        ],
+        "title": "card_labelArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "card_link",
+      "description": "Link / relate / connect two cards, or say one blocks / depends on / has\n    to be done before the other - on the Elefant board.\n\n    `kind` is read from `slug`'s point of view:\n      related     a loose link, no ordering implied\n      blocks      THIS card has to be finished before `other` can start\n      blocked-by  the other way round: `other` has to be finished first\n\n    Blocks and blocked-by are one relationship seen from two sides, so setting\n    either shows on both cards, and removing it from either end removes it.\n\n    Why it matters beyond documentation: `card_next` reads these. An unattended\n    routine pulling from a column will skip a blocked card and work its blocker\n    instead, even when the blocker sits further down the board — which is the\n    ordering a human does in their head and an agent otherwise cannot.\n\n    A card cannot link to itself. A longer cycle (A blocks B, B blocks A) is\n    allowed and REPORTED rather than refused: it is a real disagreement about\n    the work, and the person who can settle it needs to see it stated.\n\n    Args:\n        slug:   The card (current slug or an alias).\n        other:  The card to link it to (slug, alias, or number-free slug).\n        kind:   related | blocks | blocked-by.\n        remove: Set true to take the link off instead of putting it on.",
+      "inputSchema": {
+        "properties": {
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "other": {
+            "title": "Other",
+            "type": "string"
+          },
+          "kind": {
+            "default": "related",
+            "title": "Kind",
+            "type": "string"
+          },
+          "remove": {
+            "default": false,
+            "title": "Remove",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "slug",
+          "other"
+        ],
+        "title": "card_linkArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "card_link_wiki",
+      "description": "Link / attach a wiki page, note or write-up to an Elefant board card (or\n    detach one) - the same \"Link\" action the board UI offers on a card.\n\n    This is what to call after writing up a card's idea as a wiki page: link the\n    page to the card instead of pasting its URL into the card body. The link is\n    stored on the card and rendered as a clickable page chip in the board UI.\n\n    Adds to (or removes from) the card's existing links — it never replaces the\n    whole list, so links added by a human or an earlier session survive. Linking\n    a page that's already linked is a no-op.\n\n    Note: a page written under `<AI folder>/projects/<card-slug>/…` is already\n    associated with the card automatically (derived at read time, survives\n    renames) — you don't need to link those explicitly. Use this tool for pages\n    that live anywhere else.\n\n    Args:\n        slug:   The card (current slug or an alias).\n        path:   Wiki page path, e.g. \"AI/projects/netdisco/design.md\".\n        unlink: Set true to remove the link instead of adding it.",
+      "inputSchema": {
+        "properties": {
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "unlink": {
+            "default": false,
+            "title": "Unlink",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "slug",
+          "path"
+        ],
+        "title": "card_link_wikiArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "card_list",
+      "description": "What's on the board / what's up next / show me my tasks / what am I\n    working on / what's in progress - read the Elefant (\"elephant\") board.\n    Optionally filter by column (name or id), by stage (backlog /\n    selected-for-development / in-progress / scheduled / blocked / review /\n    done - or, on a board created before that vocabulary, one of spark /\n    shaping / designed / ready / building / shipped / dropped), by tag, by\n    label, by GitHub repo, by the people on a card, or by free text.\n    Closed cards are hidden unless closed=true.\n\n    `archived` is what `closed` used to be called and still does the same\n    thing, so a caller written against the old name keeps working.\n\n    Filters combine, so `stage=\"designed\", label=\"bug\"` is every bug card in\n    the designed columns. Label matching is case-insensitive and exact — it\n    is not a substring search.\n\n    `repo` is the filter to reach for when several projects share this board\n    and you want one project's cards: `card_list(repo=\"owner/name\")`. It is\n    matched canonically, so a full github.com URL finds the same cards as the\n    bare `owner/name`.\n\n    PEOPLE FILTERS answer the questions worth asking about a person:\n    `reporter=` is what they raised, `assignee=` is what they are DOING,\n    `participant=` is what they are on, and `person=` is any of the three —\n    usually the one you want for \"what is Jon involved in\". `assignee=` is the\n    one to reach for to answer \"what is on my plate\". All of them take a\n    username, a display name, or a `user:`/`agent:` reference; a value matching\n    nobody returns no cards rather than an error, so a stale filter is empty\n    rather than broken.\n\n    `tag` is the PRE-MERGE spelling of `label` and filters the same field —\n    cards carried two string arrays once and now carry one. It still answers,\n    so `tag=\"note-to-self\"` keeps finding what the user filed with that phrase,\n    but `label=` is the name to reach for.\n    `search` is free text over title, body, slug, labels and repo, for\n    when you know roughly what a card said but not its slug. An all-digits\n    query (`57`, or `#57`) is also read as a card NUMBER: that card is matched\n    even though the digits appear nowhere in its text, and it is returned\n    first, ahead of any card that merely mentions 57.\n\n    DUE DATES: `due_before=\"2026-11-30\"` and `due_after=\"2026-11-01\"` are\n    inclusive `YYYY-MM-DD` bounds, and either one leaves out cards with no due\n    date. `overdue=True` is every card whose due date has passed (UTC) and that\n    is not done or closed — the one to reach for to answer \"what is late\".",
+      "inputSchema": {
+        "properties": {
+          "column": {
+            "default": "",
+            "title": "Column",
+            "type": "string"
+          },
+          "stage": {
+            "default": "",
+            "title": "Stage",
+            "type": "string"
+          },
+          "tag": {
+            "default": "",
+            "title": "Tag",
+            "type": "string"
+          },
+          "label": {
+            "default": "",
+            "title": "Label",
+            "type": "string"
+          },
+          "repo": {
+            "default": "",
+            "title": "Repo",
+            "type": "string"
+          },
+          "reporter": {
+            "default": "",
+            "title": "Reporter",
+            "type": "string"
+          },
+          "assignee": {
+            "default": "",
+            "title": "Assignee",
+            "type": "string"
+          },
+          "participant": {
+            "default": "",
+            "title": "Participant",
+            "type": "string"
+          },
+          "person": {
+            "default": "",
+            "title": "Person",
+            "type": "string"
+          },
+          "search": {
+            "default": "",
+            "title": "Search",
+            "type": "string"
+          },
+          "due_before": {
+            "default": "",
+            "title": "Due Before",
+            "type": "string"
+          },
+          "due_after": {
+            "default": "",
+            "title": "Due After",
+            "type": "string"
+          },
+          "overdue": {
+            "default": false,
+            "title": "Overdue",
+            "type": "boolean"
+          },
+          "closed": {
+            "default": false,
+            "title": "Closed",
+            "type": "boolean"
+          },
+          "archived": {
+            "default": false,
+            "title": "Archived",
+            "type": "boolean"
+          }
+        },
+        "title": "card_listArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "card_move",
+      "description": "Move / drag / shift / put a card in another column, or reorder it - on\n    the Elefant board, using the user's own column vocabulary (see\n    board_columns). Records the move as an event.\n\n    Args:\n        slug:     The card to move.\n        column:   Target column name or id.\n        position: Optional explicit ordering value; omit to append to the\n                  column's end.",
+      "inputSchema": {
+        "properties": {
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "column": {
+            "title": "Column",
+            "type": "string"
+          },
+          "position": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Position"
+          }
+        },
+        "required": [
+          "slug",
+          "column"
+        ],
+        "title": "card_moveArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "card_next",
+      "description": "What should I work on next / what can I start / what's unblocked - the\n    next Elefant board card that can actually be STARTED, blockers already\n    resolved.\n\n    Reach for this instead of taking the top of `card_list` whenever you are\n    picking up work unattended. Reading a column top to bottom will hand you a\n    card whose blocker is three rows further down, and nothing about that card\n    says so until you have already started it.\n\n    This walks the column in the board owner's own order and, for any card with\n    an unresolved blocker, descends into that blocker instead — transitively,\n    and regardless of where the blocker sits on the board. What comes back is\n    the card to work now, plus the chain that led to it, so you can say why.\n\n    A blocker counts as resolved once it reaches a terminal stage (`shipped` or\n    `dropped`) or is closed. A blocking cycle is reported and stepped over\n    rather than followed, since nothing in such a chain can start until somebody\n    removes one of the links.\n\n    Args:\n        column: Which column to pull from, e.g. \"Up Next\" (name or id).\n        stage:  Or pull by stage, e.g. \"designed\".\n        repo:   Restrict to one project's cards, e.g. \"owner/name\".\n        label:  Restrict to one kind of work, e.g. \"bug\".",
+      "inputSchema": {
+        "properties": {
+          "column": {
+            "default": "",
+            "title": "Column",
+            "type": "string"
+          },
+          "stage": {
+            "default": "",
+            "title": "Stage",
+            "type": "string"
+          },
+          "repo": {
+            "default": "",
+            "title": "Repo",
+            "type": "string"
+          },
+          "label": {
+            "default": "",
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "title": "card_nextArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "card_participant",
+      "description": "Add / involve / loop in / cc / take off - put someone on an Elefant\n    board card, or remove them.\n\n    Participants are the people involved in a card, as resolved accounts\n    rather than names in prose — so \"show me everything Jon is on\"\n    (`card_list(person=...)`) is a real query rather than a text search.\n\n    This edits the list IN PLACE, so a participant added by a human or an\n    earlier session survives; adding somebody already on the card is a no-op,\n    and removing somebody who is not says so rather than pretending. To set\n    several at once, pass `participants` to `card_add` or `card_update` (a\n    deliberate full replace).\n\n    Note that you are added automatically when you file a card reported by\n    somebody else, so the common case needs no call at all. This is for the\n    others: a colleague who joins the work, or somebody who has left it.\n\n    Args:\n        slug:   The card (current slug or an alias).\n        person: Who to add or remove — a username, a display name, or a\n                `user:`/`agent:` reference.\n        remove: Set true to take them off instead of putting them on.",
+      "inputSchema": {
+        "properties": {
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "person": {
+            "title": "Person",
+            "type": "string"
+          },
+          "remove": {
+            "default": false,
+            "title": "Remove",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "slug",
+          "person"
+        ],
+        "title": "card_participantArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "card_repo",
+      "description": "Which repo / what codebase / set the repository - set or clear the\n    GitHub repository an Elefant board card belongs to.\n\n    The repo is a STRUCTURED field on the card, not a line of body prose. That\n    is the whole point of it: several projects share one board, so the repo is\n    the dimension that answers \"show me only this project's cards\", via\n    `card_list(repo=...)` or the board UI's repo filter. Reading a card's repo\n    means reading this field — never grep the body for a `repo:` line, which is\n    the old convention this replaces.\n\n    One repo per card. Give it as `owner/name`, or paste any github.com form\n    (https://github.com/owner/name, github.com/owner/name.git,\n    git@github.com:owner/name.git) and it is normalized to `owner/name` so that\n    one repository is one value the filter can match. Anything that is not a\n    repo reference is refused rather than stored.\n\n    Clearing is deliberate and separate: pass `clear=True`. Calling this with\n    no repo and no `clear` does nothing and says so, because silently emptying\n    a field the caller meant to set would be the worse failure.\n\n    Args:\n        slug:  The card (current slug or an alias).\n        repo:  The repository to set, e.g. \"zennthic/elefant\".\n        clear: Set true to take the repo off the card instead of setting one.",
+      "inputSchema": {
+        "properties": {
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "repo": {
+            "default": "",
+            "title": "Repo",
+            "type": "string"
+          },
+          "clear": {
+            "default": false,
+            "title": "Clear",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "slug"
+        ],
+        "title": "card_repoArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "card_reporter",
+      "description": "Who raised it / who asked for this / on whose behalf - set or clear the\n    reporter of an Elefant board card, the person the card is on behalf of.\n\n    The reporter is a resolved account, not a name in prose. Give a username,\n    an email, a display name, or a `user:`/`agent:` reference read off another\n    card; anything that matches nobody is refused rather than stored, and the\n    error names the accounts that exist. One reporter per card: provenance\n    that could name two people is not provenance.\n\n    Reach for this when you learn who a card was really for — a card you filed\n    on your own that turns out to be somebody's ask, or one attributed to the\n    wrong person. There is no \"clear\": a card that has recorded who raised it\n    should not be able to forget, and correcting it means naming somebody\n    else. To say you are involved without claiming you raised it, use\n    `card_participant` instead.\n\n    Args:\n        slug:   The card (current slug or an alias).\n        person: Who raised it.",
+      "inputSchema": {
+        "properties": {
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "person": {
+            "title": "Person",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "person"
+        ],
+        "title": "card_reporterArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "card_update",
+      "description": "Edit / change / rename / reword / rewrite a card or ticket - update an\n    Elefant board card. Renaming (new_slug) automatically pushes the old\n    slug onto the card's aliases so past references keep resolving. Only the\n    fields you pass are changed.\n\n    Args:\n        slug:     The card to edit (current slug or an alias).\n        title:    New title (empty = leave unchanged).\n        body:     New DESCRIPTION (empty = leave unchanged). Markdown, fenced\n                  code blocks included, renders in the board UI.\n        aliases:  Replace the alias list (e.g. to record that \"Tarsier\" is this\n                  card's old name). Omit to leave unchanged.\n        new_slug: Rename the card's identity; the old slug is retained as an alias.\n        labels:   REPLACE the card's labels with this exact list ([] clears them).\n                  Omit to leave unchanged. To add or remove ONE label without\n                  disturbing the others (including labels a human added), use\n                  `card_label` instead — it edits the list in place.\n        repo:     Set the card's GitHub repo (`owner/name`, or a github.com URL\n                  that normalizes to one). Empty leaves it unchanged — to take\n                  a repo OFF a card, use `card_repo(slug, clear=True)`, which\n                  can say the difference.\n        wiki_links: REPLACE the card's linked wiki pages with this exact list.\n                  Omit to leave unchanged. To attach or detach one page without\n                  disturbing the others (including links a human added), use\n                  `card_link_wiki` instead — it edits the list in place.\n        reporter: Set who raised the card. Empty leaves it unchanged; use\n                  `card_reporter` for the same thing on its own.\n        assignee: Set who is doing the card. Empty leaves it unchanged — to\n                  hand a card back use `card_assignee(slug, clear=True)`, so\n                  that unassigning is always asked for by name.\n        participants: REPLACE the card's participants with this exact list\n                  ([] clears them). Omit to leave unchanged. To add or remove\n                  ONE without disturbing the others, use `card_participant`.\n        due:      Set the due date, `YYYY-MM-DD`. Empty leaves it unchanged —\n                  to take a due date off use `card_due(slug, clear=True)`, so\n                  that clearing one is always asked for by name.",
+      "inputSchema": {
+        "properties": {
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "title": {
+            "default": "",
+            "title": "Title",
+            "type": "string"
+          },
+          "body": {
+            "default": "",
+            "title": "Body",
+            "type": "string"
+          },
+          "aliases": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Aliases"
+          },
+          "new_slug": {
+            "default": "",
+            "title": "New Slug",
+            "type": "string"
+          },
+          "labels": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Labels"
+          },
+          "repo": {
+            "default": "",
+            "title": "Repo",
+            "type": "string"
+          },
+          "wiki_links": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Wiki Links"
+          },
+          "reporter": {
+            "default": "",
+            "title": "Reporter",
+            "type": "string"
+          },
+          "assignee": {
+            "default": "",
+            "title": "Assignee",
+            "type": "string"
+          },
+          "participants": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Participants"
+          },
+          "due": {
+            "default": "",
+            "title": "Due",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug"
+        ],
+        "title": "card_updateArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "diagram_create",
+      "description": "Create / draw / make a new diagram, flowchart, sequence diagram or chart in\n    Elefant from Mermaid text, and get the rendered picture back to check it.\n\n    The Mermaid text is what is stored (a wiki page holding one ```mermaid\n    block), never pixels, so the wiki's history, diff and revert work on it.\n    The source is parsed by Mermaid before anything is saved; a mistake comes\n    back with its line number (counted in the source you sent, front matter\n    included) and nothing is written. The result's structured content carries\n    `saved` and `validated` (true when Mermaid's parser checked the source).\n\n    Give nodes short, explicit, stable IDs and put the wording in the label\n    (`A[Log in] --> B[Check password]`, not `Log in --> Check password`). Later\n    revisions can then change one label without touching anything else.\n\n    To change an existing diagram use `diagram_patch`, never create it again.\n\n    Args:\n        name:        Short name, e.g. \"login-flow\". Stored as\n                     `<AI folder>/diagrams/login-flow.md`. A full wiki page path\n                     (with a slash) is used as given.\n        source:      Mermaid source: the diagram type line (e.g.\n                     \"flowchart TD\"), optionally after a front matter block.\n        title:       Heading for the page. Defaults to the name.\n        description: Optional text above the diagram.\n        render:      Return a PNG of the result (default true).\n\n    Writing Mermaid for Elefant (Mermaid 11.16.1, the version the\n    validator, the renderer and the wiki all use):\n    - Front matter config is allowed before the diagram type: a `---` block\n      with `title:` and `config:` (theme, themeVariables, flowchart settings)\n      goes first, then the type line, e.g. `flowchart TD`.\n    - Use stable short node IDs and put the label text in quoted labels:\n      `api[\"Orders API\"]`, `db[(\"Orders DB\")]`. A patch can then change one\n      label without touching other lines, and the quotes keep punctuation in\n      a label from breaking the parse.\n    - Style with `classDef hot fill:#f96,stroke:#333` and then\n      `class api,db hot` (or `api:::hot`); `style front fill:#eef` styles one\n      node or subgraph. Shapes: `store@{ shape: cyl, label: \"Store\" }`.\n    - Edge IDs and `animate` need Mermaid 11.16.1 as shipped here:\n      `a e1@--> b` names the edge, then `e1@{ animate: true }` animates it.\n      An older Mermaid elsewhere may not draw them.\n    - `block` selects a diagram when a page holds several ```mermaid blocks\n      (0 = first).\n    - `if_version` comes from `diagram_get` or the last create or patch\n      result, and pins a patch to the version you read.\n    - House style bans em and en dashes in labels. A write that contains one\n      is still saved, with a warning naming the lines.\n\n    Layout (flowcharts, drawn with the dagre layout). A write that breaks one\n    of these rules is still saved, with a warning naming the lines:\n    - A `direction` line inside a subgraph is ignored when any edge crosses\n      that subgraph's border. Attach such edges to the subgraph itself.\n    - Edges into nodes nested more than 2 subgraphs deep tangle and overlap\n      labels. Attach the edge to the enclosing subgraph, and leave out edges\n      that containment already shows.\n    - Keep subgraph titles to one line: a `<br/>` in a subgraph title can\n      overlap the first node inside it.\n    - Past about 30 nodes, split the diagram into an overview and detail\n      diagrams.",
+      "inputSchema": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "title": {
+            "default": "",
+            "title": "Title",
+            "type": "string"
+          },
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "render": {
+            "default": true,
+            "title": "Render",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "source"
+        ],
+        "title": "diagram_createArguments",
+        "type": "object"
+      },
+      "annotations": {
+        "title": "Create a diagram",
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "diagram_get",
+      "description": "Show me / open / read the Mermaid source of an Elefant diagram, with line\n    numbers and the version to pass to `diagram_patch`.\n\n    Read this before patching: the line numbers it shows are what line edits\n    and parse errors refer to, and the version it reports is what the patch is\n    pinned to.\n\n    Args:\n        name:  The diagram's name (e.g. \"login-flow\") or a wiki page path.\n        block: Which mermaid block, when a page holds several (0 = first).\n\n    Writing Mermaid for Elefant (Mermaid 11.16.1, the version the\n    validator, the renderer and the wiki all use):\n    - Front matter config is allowed before the diagram type: a `---` block\n      with `title:` and `config:` (theme, themeVariables, flowchart settings)\n      goes first, then the type line, e.g. `flowchart TD`.\n    - Use stable short node IDs and put the label text in quoted labels:\n      `api[\"Orders API\"]`, `db[(\"Orders DB\")]`. A patch can then change one\n      label without touching other lines, and the quotes keep punctuation in\n      a label from breaking the parse.\n    - Style with `classDef hot fill:#f96,stroke:#333` and then\n      `class api,db hot` (or `api:::hot`); `style front fill:#eef` styles one\n      node or subgraph. Shapes: `store@{ shape: cyl, label: \"Store\" }`.\n    - Edge IDs and `animate` need Mermaid 11.16.1 as shipped here:\n      `a e1@--> b` names the edge, then `e1@{ animate: true }` animates it.\n      An older Mermaid elsewhere may not draw them.\n    - `block` selects a diagram when a page holds several ```mermaid blocks\n      (0 = first).\n    - `if_version` comes from `diagram_get` or the last create or patch\n      result, and pins a patch to the version you read.\n    - House style bans em and en dashes in labels. A write that contains one\n      is still saved, with a warning naming the lines.\n\n    Layout (flowcharts, drawn with the dagre layout). A write that breaks one\n    of these rules is still saved, with a warning naming the lines:\n    - A `direction` line inside a subgraph is ignored when any edge crosses\n      that subgraph's border. Attach such edges to the subgraph itself.\n    - Edges into nodes nested more than 2 subgraphs deep tangle and overlap\n      labels. Attach the edge to the enclosing subgraph, and leave out edges\n      that containment already shows.\n    - Keep subgraph titles to one line: a `<br/>` in a subgraph title can\n      overlap the first node inside it.\n    - Past about 30 nodes, split the diagram into an overview and detail\n      diagrams.",
+      "inputSchema": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "block": {
+            "default": 0,
+            "title": "Block",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "diagram_getArguments",
+        "type": "object"
+      },
+      "annotations": {
+        "title": "Read a diagram",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "diagram_list",
+      "description": "List / what diagrams, flowcharts and charts do I have - every diagram\n    stored in Elefant's diagrams folder, by name.\n\n    Diagrams embedded in other wiki pages are not listed here; read those with\n    `diagram_get` and the page's path.",
+      "inputSchema": {
+        "properties": {},
+        "title": "diagram_listArguments",
+        "type": "object"
+      },
+      "annotations": {
+        "title": "List diagrams",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "diagram_patch",
+      "description": "Change / fix / update one part of an Elefant diagram - relabel a node, add\n    or remove an arrow - without redrawing it, and get the new picture back.\n\n    Each edit is targeted: swap an exact snippet (op \"replace\"), or replace,\n    insert or delete a line by number. Everything else in the source stays\n    byte-for-byte the same, so the change reads as a small diff in History.\n\n    Pinned with `if_version` (from `diagram_get` or the last create/patch): if\n    the diagram changed since, nothing is written and you are told to re-read\n    it. The result is parsed by Mermaid before it is saved; an edit that breaks\n    the diagram comes back with the line number and is not saved. The result's\n    structured content carries `saved` and `validated`, as for diagram_create.\n\n    Undo a patch with `wiki_history` and `wiki_revert` on the diagram's page.\n\n    Args:\n        name:       The diagram's name (e.g. \"login-flow\") or a wiki page path.\n        if_version: The version you read. Required.\n        edits:      One or more edits, all addressing the source as you read it,\n                    e.g. [{\"op\": \"replace\", \"old\": \"B[Check password]\",\n                    \"new\": \"B[Check password and MFA]\"}].\n        block:      Which mermaid block, when a page holds several (0 = first).\n        render:     Return a PNG of the result (default true).\n\n    Writing Mermaid for Elefant (Mermaid 11.16.1, the version the\n    validator, the renderer and the wiki all use):\n    - Front matter config is allowed before the diagram type: a `---` block\n      with `title:` and `config:` (theme, themeVariables, flowchart settings)\n      goes first, then the type line, e.g. `flowchart TD`.\n    - Use stable short node IDs and put the label text in quoted labels:\n      `api[\"Orders API\"]`, `db[(\"Orders DB\")]`. A patch can then change one\n      label without touching other lines, and the quotes keep punctuation in\n      a label from breaking the parse.\n    - Style with `classDef hot fill:#f96,stroke:#333` and then\n      `class api,db hot` (or `api:::hot`); `style front fill:#eef` styles one\n      node or subgraph. Shapes: `store@{ shape: cyl, label: \"Store\" }`.\n    - Edge IDs and `animate` need Mermaid 11.16.1 as shipped here:\n      `a e1@--> b` names the edge, then `e1@{ animate: true }` animates it.\n      An older Mermaid elsewhere may not draw them.\n    - `block` selects a diagram when a page holds several ```mermaid blocks\n      (0 = first).\n    - `if_version` comes from `diagram_get` or the last create or patch\n      result, and pins a patch to the version you read.\n    - House style bans em and en dashes in labels. A write that contains one\n      is still saved, with a warning naming the lines.\n\n    Layout (flowcharts, drawn with the dagre layout). A write that breaks one\n    of these rules is still saved, with a warning naming the lines:\n    - A `direction` line inside a subgraph is ignored when any edge crosses\n      that subgraph's border. Attach such edges to the subgraph itself.\n    - Edges into nodes nested more than 2 subgraphs deep tangle and overlap\n      labels. Attach the edge to the enclosing subgraph, and leave out edges\n      that containment already shows.\n    - Keep subgraph titles to one line: a `<br/>` in a subgraph title can\n      overlap the first node inside it.\n    - Past about 30 nodes, split the diagram into an overview and detail\n      diagrams.",
+      "inputSchema": {
+        "$defs": {
+          "DiagramEdit": {
+            "description": "One targeted change to a diagram's Mermaid source.\n\nEvery edit addresses the source AS YOU READ IT (the version you pass as\nif_version), so the edits in one call do not shift each other's line\nnumbers. Edits that overlap are refused.",
+            "properties": {
+              "op": {
+                "default": "replace",
+                "description": "replace: swap the exact text `old` (must occur exactly once) for `new`. replace_line: replace line `line` with `text`. insert_after: insert `text` after line `line` (0 = at the top). delete_line: remove line `line`.",
+                "enum": [
+                  "replace",
+                  "replace_line",
+                  "insert_after",
+                  "delete_line"
+                ],
+                "title": "Op",
+                "type": "string"
+              },
+              "old": {
+                "default": "",
+                "description": "replace: exact existing text, unique in the source.",
+                "title": "Old",
+                "type": "string"
+              },
+              "new": {
+                "default": "",
+                "description": "replace: what `old` becomes (may be empty).",
+                "title": "New",
+                "type": "string"
+              },
+              "line": {
+                "default": 0,
+                "description": "Line ops: 1-based line number in the source you read.",
+                "title": "Line",
+                "type": "integer"
+              },
+              "text": {
+                "default": "",
+                "description": "replace_line / insert_after: the new line(s).",
+                "title": "Text",
+                "type": "string"
+              }
+            },
+            "title": "DiagramEdit",
+            "type": "object"
+          }
+        },
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "if_version": {
+            "title": "If Version",
+            "type": "string"
+          },
+          "edits": {
+            "items": {
+              "$ref": "#/$defs/DiagramEdit"
+            },
+            "title": "Edits",
+            "type": "array"
+          },
+          "block": {
+            "default": 0,
+            "title": "Block",
+            "type": "integer"
+          },
+          "render": {
+            "default": true,
+            "title": "Render",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "if_version",
+          "edits"
+        ],
+        "title": "diagram_patchArguments",
+        "type": "object"
+      },
+      "annotations": {
+        "title": "Patch a diagram",
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "diagram_render",
+      "description": "Look at / see / render / preview an Elefant diagram or chart drawn out as\n    a picture, to check that it says what you meant. A diagram that parses can\n    still be wrong.\n\n    Renders a stored diagram by name, or a Mermaid `source` you have not saved\n    yet (nothing is written either way).\n\n    The renderer is an optional service. When it is off, the result says so\n    in structured content: `rendered: false`, and `renderer` names the\n    setting that enables it (`COMPOSE_PROFILES=diagrams` for Docker Compose,\n    the diagram-renderer component of the Kubernetes base), what still works\n    (parse validation) and what does not (images). The source is still\n    parsed, so a mistake still comes back with its line number.\n\n    Args:\n        name:   The diagram's name (e.g. \"login-flow\") or a wiki page path.\n        source: Mermaid source to preview instead of a stored diagram.\n        format: \"png\" (default, an image) or \"svg\" (the SVG markup as text).\n        block:  Which mermaid block, when a page holds several (0 = first).\n\n    Writing Mermaid for Elefant (Mermaid 11.16.1, the version the\n    validator, the renderer and the wiki all use):\n    - Front matter config is allowed before the diagram type: a `---` block\n      with `title:` and `config:` (theme, themeVariables, flowchart settings)\n      goes first, then the type line, e.g. `flowchart TD`.\n    - Use stable short node IDs and put the label text in quoted labels:\n      `api[\"Orders API\"]`, `db[(\"Orders DB\")]`. A patch can then change one\n      label without touching other lines, and the quotes keep punctuation in\n      a label from breaking the parse.\n    - Style with `classDef hot fill:#f96,stroke:#333` and then\n      `class api,db hot` (or `api:::hot`); `style front fill:#eef` styles one\n      node or subgraph. Shapes: `store@{ shape: cyl, label: \"Store\" }`.\n    - Edge IDs and `animate` need Mermaid 11.16.1 as shipped here:\n      `a e1@--> b` names the edge, then `e1@{ animate: true }` animates it.\n      An older Mermaid elsewhere may not draw them.\n    - `block` selects a diagram when a page holds several ```mermaid blocks\n      (0 = first).\n    - `if_version` comes from `diagram_get` or the last create or patch\n      result, and pins a patch to the version you read.\n    - House style bans em and en dashes in labels. A write that contains one\n      is still saved, with a warning naming the lines.\n\n    Layout (flowcharts, drawn with the dagre layout). A write that breaks one\n    of these rules is still saved, with a warning naming the lines:\n    - A `direction` line inside a subgraph is ignored when any edge crosses\n      that subgraph's border. Attach such edges to the subgraph itself.\n    - Edges into nodes nested more than 2 subgraphs deep tangle and overlap\n      labels. Attach the edge to the enclosing subgraph, and leave out edges\n      that containment already shows.\n    - Keep subgraph titles to one line: a `<br/>` in a subgraph title can\n      overlap the first node inside it.\n    - Past about 30 nodes, split the diagram into an overview and detail\n      diagrams.",
+      "inputSchema": {
+        "properties": {
+          "name": {
+            "default": "",
+            "title": "Name",
+            "type": "string"
+          },
+          "source": {
+            "default": "",
+            "title": "Source",
+            "type": "string"
+          },
+          "format": {
+            "default": "png",
+            "title": "Format",
+            "type": "string"
+          },
+          "block": {
+            "default": 0,
+            "title": "Block",
+            "type": "integer"
+          }
+        },
+        "title": "diagram_renderArguments",
+        "type": "object"
+      },
+      "annotations": {
+        "title": "Render a diagram",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "get_user_settings",
+      "description": "Show / check / what are my settings / how am I configured - the caller's\n    saved Elefant settings as programmatic values (booleans / numbers), NOT\n    semantic memory.\n\n    Call this ONCE near the start of a session, before answering, to learn how\n    to operate this session — most importantly whether second-brain mode is on.\n    These are real stored settings: do NOT use `search` or `memory_search` to\n    discover them. The companion Elefant Skill maps what each key means and how\n    to act on it. A value shown as \"system default\" has no tenant override set.",
+      "inputSchema": {
+        "properties": {},
+        "title": "get_user_settingsArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_wiki_page",
+      "description": "Read / open / show me / pull up / what does that page say - one Elefant\n    (\"elephant\") wiki page (note, document, runbook) in full, including\n    embedded images.\n\n    Use this after a search returns a relevant wiki page to read the complete\n    content. Images embedded in the page are fetched and included inline so\n    you can see diagrams, screenshots, and other visual content.\n\n    If a board card references this page — either because the card links it, or\n    because the page lives under `<AI folder>/projects/<card-slug>/` — the card\n    is named at the top of the result. That page is that card's write-up, so\n    read the card before rewriting the page, and keep the two in step.\n\n    ONE SECTION: add the heading's anchor to the path — `runbooks/db.md#rollback`\n    — to get just that heading and everything under it, subsections included.\n    Search results that hit a section already carry the anchor on their path.\n    A full read ends with the page's section anchors, so you can cite or link a\n    section as `path#anchor` (the same link works in the wiki UI and in other\n    pages). If the heading has been renamed or removed, you get the whole page\n    with a note saying the anchor was not found.\n\n    Args:\n        path: Wiki page path as returned by search results (e.g.\n              \"hardware/ESP32-C3.md\"), optionally with `#anchor` for one\n              section. Space-relative — do not prefix with the tenant slug;\n              it is resolved from your token.",
+      "inputSchema": {
+        "properties": {
+          "path": {
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "title": "get_wiki_pageArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "git_read",
+      "description": "Read / open / show me that file - a line span of a file from a git\n    source synced into Elefant; the code-search counterpart to opening a\n    file after a `git_search` hit.\n\n    Args:\n        source_id: Repo id (from a `git_search` result or `list_sources`).\n        path:      File path within the repo (exactly as shown by `git_search`).\n        start:     First line to return (1-based, default 1).\n        end:       Last line to return (default 0 = end of file).",
+      "inputSchema": {
+        "properties": {
+          "source_id": {
+            "title": "Source Id",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "start": {
+            "default": 1,
+            "title": "Start",
+            "type": "integer"
+          },
+          "end": {
+            "default": 0,
+            "title": "End",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "source_id",
+          "path"
+        ],
+        "title": "git_readArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "git_search",
+      "description": "Search / find / grep the code / where is that function - lexical\n    (keyword / symbol) search across the git repositories synced into\n    Elefant.\n\n    This is the code-search counterpart to `search` (which is *semantic* over\n    the wiki + durable memories). git_search runs an *exact* lexical query —\n    Postgres full-text + trigram — over the raw contents of every git-source\n    file, the way `grep` works over a checkout. Reach for it to find function\n    names, error strings, config keys, routes, or any literal token in code,\n    where exact matching beats semantic similarity.\n\n    Returns matching files ranked by relevance, each with the specific line\n    numbers that matched and a few lines of surrounding context. Follow a hit\n    with `git_read` to pull a wider span around it. Iterate like you would with\n    grep: if a query misses, reformulate (synonyms, the symbol you expect).\n\n    Args:\n        query:     Words / identifiers / substrings to find\n                   (e.g. \"plainto_tsquery\", \"retry backoff\", \"UndefinedFunction\").\n        source_id: Optional — restrict to one repo (id from `list_sources` or a\n                   prior git_search hit). Empty searches all synced sources.\n        limit:     Max files to return (1–100, default 20).",
+      "inputSchema": {
+        "properties": {
+          "query": {
+            "title": "Query",
+            "type": "string"
+          },
+          "source_id": {
+            "default": "",
+            "title": "Source Id",
+            "type": "string"
+          },
+          "limit": {
+            "default": 20,
+            "title": "Limit",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "git_searchArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "list_sources",
+      "description": "List / show me / which repos / what code do you have - the synced git\n    repositories available in this Elefant knowledge base.\n\n    Use this tool to learn the *perimeter* of the knowledge base before\n    searching — i.e. which repos exist as data sources, their names,\n    upstream URLs, and branches. Then you can interpret `wiki_search`\n    results correctly: a hit's `Origin: git source <name>` line tells you\n    the chunk came from one of these repos, while `Origin: wiki` means\n    a hand-authored wiki page that is *not* part of any repo.\n\n    Tip: combine with `source_tree` to see the file layout of a specific\n    repo before deciding which files to fetch with `get_wiki_page`.",
+      "inputSchema": {
+        "properties": {},
+        "title": "list_sourcesArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "memory_add",
+      "description": "Remember this exactly / save this word for word / commit this to memory\n    permanently - store one Elefant memory straight into the durable tier,\n    skipping the hot tier. Use memory_capture unless the user asked for\n    exactly this.\n\n    WHICH ONE OF THESE FOUR. \"Remember / save / note this\" → memory_capture.\n    \"Remember this exactly, word for word\" → memory_add. \"Note to self …\" →\n    note_to_self, which files a board card. \"Add a card / task / to-do\", or\n    an idea the user is not building right now → card_add. Longer than a\n    post-it, or reference material somebody will read later → wiki_write.\n\n    This is the explicit, deduped, high-confidence path. For most writes\n    you should prefer `memory_capture` instead — that streams to a cheap\n    hot tier and the compactor promotes the survivors. Use memory_add\n    only when:\n      • the user explicitly says \"remember this exactly\" or \"save this\", or\n      • you're certain a single durable record is wanted right now (not\n        a candidate that might dedupe with future captures)\n\n    The token owner's name is automatically added as an `owner:<name>` tag.\n    Memories tagged with PHI/PII/Sensitive require the token to have the\n    corresponding classification_access permission.\n\n    Args:\n        content: The text of the memory to store.\n        tags:    Optional list of tags for categorisation and filtering.\n        type:    Memory type — one of: fact, event, procedure, conversation, derived.\n                 Defaults to \"fact\".",
+      "inputSchema": {
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Tags"
+          },
+          "type": {
+            "default": "fact",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "title": "memory_addArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "memory_capture",
+      "description": "Remember this / save this / note that / keep this / don't forget / make\n    a note of / for future reference - the DEFAULT way to put something\n    into Elefant (\"elephant\") memory. This is the memory capture tool: a\n    cheap streaming memory capture into the hot tier.\n\n    WHICH ONE OF THESE FOUR. \"Remember / save / note this\" → memory_capture.\n    \"Remember this exactly, word for word\" → memory_add. \"Note to self …\" →\n    note_to_self, which files a board card. \"Add a card / task / to-do\", or\n    an idea the user is not building right now → card_add. Longer than a\n    post-it, or reference material somebody will read later → wiki_write.\n\n    USE THIS AGGRESSIVELY. Anything the user mentions or implies that might\n    matter later — preferences, decisions, project facts, host names,\n    \"where we left off\", recurring people, vetoed approaches — should go\n    here. The server writes it to a hot tier with no embedding cost; a\n    background compactor periodically clusters captures, scores recurrence\n    and cross-source diversity, and promotes the durable survivors to\n    long-term memory. Bloat is cheap, missing context is expensive.\n\n    Prefer this over `memory_add` for almost every write. Only fall back\n    to memory_add when the user explicitly says \"remember this exactly\"\n    or you're certain a single high-confidence durable record is wanted\n    right now and shouldn't wait for compaction.\n\n    The token's source attribution is applied automatically — agents\n    don't need to pass it. PHI/PII/Sensitive tags require the\n    corresponding classification_access on the token (same gate as\n    memory_add).\n\n    Args:\n        content:   The text to capture.\n        type_hint: Optional hint for the compactor: fact / event /\n                   procedure / conversation / derived. Leave empty if\n                   unclear; the compactor will infer.\n        tags:      Optional tags for filtering and clustering.",
+      "inputSchema": {
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "type_hint": {
+            "default": "",
+            "title": "Type Hint",
+            "type": "string"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Tags"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "title": "memory_captureArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "memory_delete",
+      "description": "Forget this / delete / remove / drop that - delete one Elefant memory by\n    its id.\n\n    This permanently removes the memory and its embedding from the vector store.\n    Use with care — there is no undo.\n\n    Args:\n        memory_id: The UUID of the memory to delete.",
+      "inputSchema": {
+        "properties": {
+          "memory_id": {
+            "title": "Memory Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "memory_id"
+        ],
+        "title": "memory_deleteArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "memory_events",
+      "description": "Show the log / audit trail / what has been happening - the structured\n    event log of Elefant memory activity.\n\n    Returns a paginated list of recent storage/retrieval events recorded in\n    PostgreSQL. Use this to audit what has been recently stored or retrieved,\n    or to trace activity in an agent pipeline.\n\n    Args:\n        limit:  Number of events to return (default 20, max 100).\n        offset: Pagination offset (default 0).",
+      "inputSchema": {
+        "properties": {
+          "limit": {
+            "default": 20,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "default": 0,
+            "title": "Offset",
+            "type": "integer"
+          }
+        },
+        "title": "memory_eventsArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "memory_introspect",
+      "description": "How is my memory doing / give me the stats / overview of what you have\n    stored - an aggregate retrospective of Elefant memory activity in your\n    tenant.\n\n    Shows what you captured, what got promoted, what got dropped, and the\n    type / tag / source / score distributions over the given time window.\n    Use this to answer \"how is my memory doing?\" — to see whether recent\n    captures are surviving compaction, spot tag/type imbalances, or\n    sanity-check compactor behaviour.\n\n    For the trail of a *specific* durable memory back to its hot captures,\n    use memory_provenance(memory_id) instead.\n\n    Args:\n        window: Time window to summarise. \"24h\", \"7d\", \"30d\", \"Nh\"/\"Nd\"/\"Nw\"\n                or \"all\". Default \"7d\". \"Pending\" is always current state\n                regardless of window — a row is either pending right now or\n                it isn't.",
+      "inputSchema": {
+        "properties": {
+          "window": {
+            "default": "7d",
+            "title": "Window",
+            "type": "string"
+          }
+        },
+        "title": "memory_introspectArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "memory_list",
+      "description": "List / show me / what do you remember / what have you saved - the\n    Elefant memories on file, optionally filtered by tags.\n\n    Memories are discrete facts, decisions, preferences, or observations stored\n    explicitly — separate from the wiki corpus. Use this to recall things that\n    were intentionally remembered (e.g. user preferences, project decisions,\n    key facts for a specific context).\n\n    Results are filtered by your token's label scope and classification access.\n\n    Args:\n        tags:  Comma-separated tags to filter by (e.g. \"project-x,decision\").\n               Leave empty to list all memories.\n        limit: Maximum memories to return (default 50).",
+      "inputSchema": {
+        "properties": {
+          "tags": {
+            "default": "",
+            "title": "Tags",
+            "type": "string"
+          },
+          "limit": {
+            "default": 50,
+            "title": "Limit",
+            "type": "integer"
+          }
+        },
+        "title": "memory_listArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "memory_provenance",
+      "description": "Why do I remember this / where did this come from / how do you know\n    that - trace one durable Elefant memory back to the captures it was\n    made from.\n\n    Returns the trail backward from a durable memory to the hot-tier\n    captures it was synthesised from: when it was promoted, what its\n    compactor score was, which sessions contributed, and the original\n    text of each capture that merged into it.\n\n    Use this to answer \"why do I remember this?\" or \"where did this come\n    from?\" Especially useful when a search hit looks surprising and you\n    want to understand its origin before acting on it.\n\n    Memories created before promotion-time provenance tracking (or via\n    direct memory_add, which bypasses the hot tier) are reported as\n    \"no provenance recorded\" — that's expected, not an error.\n\n    Args:\n        memory_id: The durable memory id (UUID), as returned by search,\n                   memory_search, or memory_list.",
+      "inputSchema": {
+        "properties": {
+          "memory_id": {
+            "title": "Memory Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "memory_id"
+        ],
+        "title": "memory_provenanceArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "memory_revisions",
+      "description": "What changed / edit history / earlier versions of this memory - the\n    revision trail of one durable Elefant memory.\n\n    Returns each prior version that existed before an update overwrote it —\n    the snapshot of content/type/tags, when the change happened, who made\n    it, and which fields they touched. Use this to audit how a memory's\n    content evolved, or to answer \"what did this say before I edited it\n    last time?\"\n\n    Memories that have never been updated return an empty history — not\n    an error, just no edits to show. Updates that didn't actually change\n    any field (no-op PUTs) don't create revision rows either.\n\n    Args:\n        memory_id: The durable memory id (UUID).\n        limit:     Max revisions to return (1–200, default 20).",
+      "inputSchema": {
+        "properties": {
+          "memory_id": {
+            "title": "Memory Id",
+            "type": "string"
+          },
+          "limit": {
+            "default": 20,
+            "title": "Limit",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "memory_id"
+        ],
+        "title": "memory_revisionsArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "memory_search",
+      "description": "Search / look up / recall / what do I remember about - Elefant\n    (\"elephant\") MEMORIES ONLY. Does not look at wiki pages.\n\n    This tool searches only the stored memories collection. Do NOT use this\n    for general knowledge base questions — use the 'search' tool instead,\n    which searches both wiki documents and memories together. Unsure which\n    tool fits? Call `search` first, or `tool_index` for the full list.\n\n    Only use this when the user specifically asks to search memories only,\n    or when they want to find stored facts/decisions/preferences that were\n    explicitly added with memory_add.\n\n    Results are filtered by your token's label scope and classification access.\n\n    Args:\n        query: Natural-language search query.\n        tags:  Comma-separated tags to restrict results (e.g. \"project-x,decision\").\n               Leave empty to search all memories.\n        limit: Maximum number of results to return (1–20, default 10).",
+      "inputSchema": {
+        "properties": {
+          "query": {
+            "title": "Query",
+            "type": "string"
+          },
+          "tags": {
+            "default": "",
+            "title": "Tags",
+            "type": "string"
+          },
+          "limit": {
+            "default": 10,
+            "title": "Limit",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "memory_searchArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "memory_session",
+      "description": "What did we talk about / what did you save in that session - every\n    Elefant memory captured under one session, as a diary.\n\n    Returns two views joined into one chronological narrative:\n    - **Durable memories** whose `originated_session_ids` contains the\n      given session (i.e. they were promoted, in part, from captures\n      this session made).\n    - **Hot-tier captures** with the matching `source_session_id`\n      (pending, promoted, or dropped) — the raw record of what was\n      written during the session, including things that didn't survive\n      compaction.\n\n    Use this to pick up where another agent (or your past self) left off,\n    or to audit \"what happened in session X?\" Especially useful for\n    cross-agent handoffs.\n\n    Memories captured before Tier 1.1 don't carry session attribution on\n    the durable side and won't appear there even if the matching hot row\n    is still present (it will still appear in the hot section).\n\n    Args:\n        session_id: The MCP session id, as set by the calling client.\n        limit:      Cap per side (1-1000, default 200).",
+      "inputSchema": {
+        "properties": {
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          },
+          "limit": {
+            "default": 200,
+            "title": "Limit",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "session_id"
+        ],
+        "title": "memory_sessionArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "memory_update",
+      "description": "Correct / change / fix / edit / that's wrong, it's actually - update the\n    content, tags or type of a memory Elefant already holds, in either tier.\n\n    Works on durable memories AND on pending hot-tier captures: if the id\n    isn't durable, the hot tier is tried automatically, so you can correct\n    a bad capture immediately without waiting for the compactor. Durable\n    edits are re-embedded (when content changes) and recorded in the\n    memory_revisions audit trail; hot edits are in-place (the hot tier is\n    pre-compaction scratch). Hot captures that were already promoted or\n    dropped are immutable — promoted ones point you at the durable id.\n\n    At least one of `content`, `tags`, or `type` must be provided.\n\n    Args:\n        memory_id: The UUID of the memory to update (durable or hot).\n        content:   New content text (leave empty to keep existing content).\n        tags:      New tag list (replaces existing tags; omit to keep existing).\n        type:      New memory type (fact, event, procedure, conversation, derived).",
+      "inputSchema": {
+        "properties": {
+          "memory_id": {
+            "title": "Memory Id",
+            "type": "string"
+          },
+          "content": {
+            "default": "",
+            "title": "Content",
+            "type": "string"
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Tags"
+          },
+          "type": {
+            "default": "",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "memory_id"
+        ],
+        "title": "memory_updateArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "note_to_self",
+      "description": "Note to self / remind me / jot this down / don't let me forget - file\n    the thought as a card on the Elefant (\"elephant\") board. This is the\n    reflex when the user prefixes something with the phrase **\"note to\n    self\"** (or \"note-to-self\") - that phrase is the explicit signal the\n    thought belongs on the Kanban board as a thin post-it, NOT in memory\n    (memory_capture) and NOT as a wiki page.\n\n    WHICH ONE OF THESE FOUR. \"Remember / save / note this\" → memory_capture.\n    \"Remember this exactly, word for word\" → memory_add. \"Note to self …\" →\n    note_to_self, which files a board card. \"Add a card / task / to-do\", or\n    an idea the user is not building right now → card_add. Longer than a\n    post-it, or reference material somebody will read later → wiki_write.\n\n    Drops one card in the leftmost backlog column, labelled\n    `note-to-self` so these captures are easy to find and filter later —\n    `card_list(label=\"note-to-self\")`. The board reserves that label: replacing\n    a card's labels cannot drop it, so a later edit by any agent leaves the\n    record of how the card was captured intact. A card is a sticky, not a\n    document — when a note outgrows it, promote it to a wiki page and keep the\n    card thin.\n\n    Args:\n        note: The note text (the words after \"note to self\"). A short note\n              becomes the card title; a longer or multi-line note keeps a\n              scannable lead line as the title with the full text in the body.",
+      "inputSchema": {
+        "properties": {
+          "note": {
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "required": [
+          "note"
+        ],
+        "title": "note_to_selfArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "reindex_status",
+      "description": "How is the reindex going / is it finished yet - status and progress of\n    the Elefant wiki reindex.\n\n    Returns the indexing state (idle / indexing / watching), progress counters,\n    timing of the last reindex, the active embedding provider and model, and\n    any recent errors. Use this after calling wiki_reindex to monitor progress,\n    or to verify the index is healthy before running a large search session.",
+      "inputSchema": {
+        "properties": {},
+        "title": "reindex_statusArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "search",
+      "description": "Search / look up / find anything / find out / what do I know about /\n    did I write anything about - across the whole Elefant (\"elephant\")\n    knowledge base: wiki pages AND memories, in one ranked list. Use this\n    for every question or lookup.\n\n    CALL THIS FIRST WHEN UNSURE WHICH SEARCH TOOL TO USE - it searches\n    across everything, including any wiki page about a card, a routine or a\n    board. If you are unsure which tool fits at all, `tool_index` lists\n    every tool by purpose.\n\n    Searches both wiki documents AND stored memories together in one ranked\n    list. Results are labelled 📖 Wiki or 🧠 Memory. This is the right tool\n    for virtually all queries — only switch to wiki_search_only or\n    memory_search if the user explicitly asks for one source.\n\n    Results are labelled 📖 Wiki or 🧠 Memory. Wiki results are scored slightly\n    higher when relevance is similar (wiki_boost), but strong memory matches\n    still appear above weak wiki matches.\n\n    Results are filtered by your token's label scope and classification access.\n\n    Args:\n        query:      Natural-language search query.\n        tags:       Comma-separated tags to filter (applied to both sources).\n        limit:      Maximum total results (1–20, default 10).\n        wiki_boost: Score multiplier for wiki results (1.0–2.0, default 1.15).\n                    Set to 1.0 for an unbiased merge of wiki and memory scores.",
+      "inputSchema": {
+        "properties": {
+          "query": {
+            "title": "Query",
+            "type": "string"
+          },
+          "tags": {
+            "default": "",
+            "title": "Tags",
+            "type": "string"
+          },
+          "limit": {
+            "default": 10,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "wiki_boost": {
+            "default": 1.15,
+            "title": "Wiki Boost",
+            "type": "number"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "searchArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "set_source_state",
+      "description": "Turn on / turn off / enable / disable / include / ignore a repo or\n    source - switch one Elefant git source on or off for THIS session\n    only.\n    Per-session and ephemeral - overrides reset when the session ends. This\n    is the tool behind \"/set git <name> on|off\".\n\n    Only affects sources the token can already see: it narrows the active set,\n    never widens access. A source turned off is excluded from git_search and\n    can't be browsed with source_tree / git_read until re-enabled. The\n    per-source \"available by default\" flag (set in the admin Sources UI) is the\n    starting point; this session override takes precedence.\n\n    Args:\n        source:  Source name or id (from list_sources).\n        enabled: true to activate for this session, false to turn off.",
+      "inputSchema": {
+        "properties": {
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "source",
+          "enabled"
+        ],
+        "title": "set_source_stateArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "set_user_settings",
+      "description": "Change / set / turn on / turn off / configure a setting or preference -\n    update ONE saved Elefant setting for this tenant.\n\n    APPROVAL REQUIRED — this writes a durable, tenant-wide configuration value.\n    Treat every call as approve-once: only call it when the user has explicitly\n    asked to change a setting (e.g. \"turn on second-brain mode\", \"/secondBrain\n    on\", \"set the promote score to 1.2\"). Never call it speculatively or to\n    \"tidy up\" — a human should confirm each change. Requires a token with\n    memory_write permission.\n\n    Args:\n        setting: One of — second_brain_mode | hot_tier_promote_score |\n                 hot_tier_drop_score | hot_tier_drop_age_days |\n                 hot_tier_cluster_threshold | board_nudge_chars\n        value:   New value.\n                 - second_brain_mode: on / off (true/false/yes/no/1/0)\n                 - thresholds: a non-negative number\n                 - board_nudge_chars: a non-negative integer; 0 (the default)\n                   means no description-length nudge at all\n                 - \"default\" (or \"none\" / \"clear\") on any setting removes the\n                   override so the system default applies again.",
+      "inputSchema": {
+        "properties": {
+          "setting": {
+            "title": "Setting",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "setting",
+          "value"
+        ],
+        "title": "set_user_settingsArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "source_tree",
+      "description": "List / show me / browse the files in that repo - every file in one git\n    source synced into Elefant, so you can see the repository's structure\n    and boundaries.\n\n    Use this after `list_sources` when you need to know what files belong to\n    a repo (e.g. to decide whether a Docker-related question concerns the\n    project's actual Dockerfiles or a hand-authored wiki page).\n\n    Args:\n        source_id: id from `list_sources` (also visible in search results as\n                   `Origin: git source ...`).",
+      "inputSchema": {
+        "properties": {
+          "source_id": {
+            "title": "Source Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_id"
+        ],
+        "title": "source_treeArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "tool_index",
+      "description": "Which tool do I use / start here / help / what can Elefant do / list\n    the tools - the Elefant (\"elephant\") tool index: every tool on this\n    server, grouped by what it is for, with one line each.\n\n    CALL THIS FIRST WHEN YOU DO NOT KNOW WHICH TOOL YOU NEED. It is cheaper\n    than guessing with keyword searches over tool descriptions, which match\n    the literal words of a request and can land on the wrong tool (a query\n    mentioning \"card\" finds card_add when the person wanted to search).\n\n    For any question or lookup, the answer is almost always `search`, which\n    covers wiki pages and memories together.\n\n    Args:\n        topic: Optional. Narrow the list to one group: search, wiki, memory,\n               board, diagrams, code or settings. Leave empty for everything.",
+      "inputSchema": {
+        "properties": {
+          "topic": {
+            "default": "",
+            "title": "Topic",
+            "type": "string"
+          }
+        },
+        "title": "tool_indexArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "wiki_delete",
+      "description": "Delete / remove / get rid of / bin / throw away - an Elefant wiki page,\n    or a folder and everything under it.\n\n    Markdown pages go to the same recycle bin a human deletion uses, so this is\n    recoverable for 30 days rather than final — but it is still a deletion, and\n    an agent should be sure. Deleting a folder requires recursive=true, so\n    taking the contents with it is always something you asked for.\n\n    Prefer `wiki_move` when you are relocating something rather than getting\n    rid of it.\n\n    AI folder only: a page a human promoted out of it cannot be deleted.\n\n    Args:\n        path:      Page or folder, e.g. \"AI/notes/scratch.md\" or \"AI/notes\".\n        recursive: Required (true) to delete a folder with contents.",
+      "inputSchema": {
+        "properties": {
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "recursive": {
+            "default": false,
+            "title": "Recursive",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "title": "wiki_deleteArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "wiki_diff",
+      "description": "Compare / diff / what changed between those two versions - a unified\n    diff of an Elefant wiki page.\n\n    By default compares the given revision against the CURRENT page (its latest\n    version). Pass `against_id` to compare two specific revisions instead.\n\n    Args:\n        path:        Wiki page path.\n        revision_id: The base revision id (the \"from\" side).\n        against_id:  Optional second revision id (the \"to\" side). 0 = current.",
+      "inputSchema": {
+        "properties": {
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "revision_id": {
+            "title": "Revision Id",
+            "type": "integer"
+          },
+          "against_id": {
+            "default": 0,
+            "title": "Against Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "path",
+          "revision_id"
+        ],
+        "title": "wiki_diffArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "wiki_edit",
+      "description": "Edit / change / fix / update / add a section to / tweak a page - change\n    PART of an Elefant wiki page, leaving the rest byte-for-byte identical.\n\n    Prefer this over `wiki_write` for any change to a page that already exists.\n    wiki_write replaces the whole page, so using it to adjust one line means\n    reproducing every other line from context — and anything you misremember is\n    silently lost. This edits in place, and because the History diff compares\n    stored snapshots, a small edit shows up as a small diff a human can review.\n\n    Modes:\n      replace         Swap an exact snippet. `old` must appear EXACTLY ONCE —\n                      include surrounding text if it doesn't. The precise tool\n                      for a one-line fix.\n      replace_section Replace the body under a heading, keeping the heading.\n                      `heading` is the heading text (\"Rollback\", not\n                      \"## Rollback\") or its anchor (\"rollback\", \"steps-1\" for\n                      the second of two \"Steps\"). `path#anchor` works too, with\n                      `heading` left empty. A section owns its subsections, so\n                      replacing \"Prepare\" also replaces a \"### Checklist\"\n                      nested under it.\n      append_section  Add to the end of that section, leaving it otherwise\n                      intact.\n      append          Add to the end of the page.\n      delete          Remove the snippet in `old` and put nothing in its place.\n                      The ONLY mode that removes text — say it explicitly.\n\n    `content` is required for every mode except `delete`, and empty content is\n    refused rather than treated as \"replace it with nothing\". Deleting a page's\n    contents is something you should have to ask for by name.\n\n    Ambiguity is refused rather than guessed: a duplicate heading or a snippet\n    matching twice comes back as an error telling you what to disambiguate. A\n    wrong heading lists the headings the page actually has.\n\n    Same boundary as wiki_write — pages under the AI folder only. A page a\n    human promoted out of it cannot be edited.\n\n    A ```mermaid block the edit adds or changes is parsed by Mermaid before\n    anything is saved, so swapping an ASCII sketch for a diagram is checked on\n    the first save. A block that does not parse is refused with its line\n    number on the page and nothing is written; a saved edit that touched a\n    diagram reports `validated` in its structured content. To change a\n    diagram that is already on a page, `diagram_patch` edits it by line.\n\n    Args:\n        path:    Page path, e.g. \"AI/runbooks/db-restore.md\".\n        mode:    replace | replace_section | append_section | append | delete\n        content: The new text. For `replace` this is what `old` becomes.\n                 Required unless mode='delete'.\n        heading: Heading text — for replace_section / append_section.\n        old:     Exact existing snippet — for `replace` and `delete`.",
+      "inputSchema": {
+        "properties": {
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "mode": {
+            "title": "Mode",
+            "type": "string"
+          },
+          "content": {
+            "default": "",
+            "title": "Content",
+            "type": "string"
+          },
+          "heading": {
+            "default": "",
+            "title": "Heading",
+            "type": "string"
+          },
+          "old": {
+            "default": "",
+            "title": "Old",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "mode"
+        ],
+        "title": "wiki_editArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "wiki_history",
+      "description": "What changed / who edited this / earlier versions - the edit history of\n    an Elefant wiki page: every saved version, newest first, with who\n    changed it, when, which fields moved (content / tags / title), and any\n    change note. Use it to audit how a page evolved, or to find the revision\n    id to view (`wiki_revision`), compare (`wiki_diff`), or restore\n    (`wiki_revert`).\n\n    A page with no recorded history returns an empty list — not an error.\n    Version history began when the feature shipped; a page edited only before\n    then starts its history at its first edit since.\n\n    Args:\n        path:  Wiki page path (e.g. \"AI/runbooks/db-restore.md\").\n        limit: Max revisions to return (1–200, default 20).",
+      "inputSchema": {
+        "properties": {
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "limit": {
+            "default": 20,
+            "title": "Limit",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "title": "wiki_historyArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "wiki_move",
+      "description": "Move / rename / reorganise / file it under / put it somewhere else - an\n    Elefant wiki page, or a whole folder and everything under it.\n\n    Use this to reorganise — it is the alternative to writing a page at a new\n    path and abandoning the old one, which leaves strays for a human to clean\n    up. A page's edit history travels with it, so History at the new path still\n    shows how the page got there.\n\n    Folders are handled recursively: moving \"AI/projects/old\" to\n    \"AI/archive/old\" takes every page beneath it.\n\n    Both ends must be inside the AI folder. A destination outside it is\n    REFUSED rather than placed inside — moving work out of the AI folder is a\n    human promoting it as reviewed, not something an agent does. A refused move\n    changes nothing, including for a folder: every page stays where it was.\n\n    Unlike `wiki_write`, a bare name is not shorthand for `to_path`. You have\n    just given a full source path, so an unqualified destination is ambiguous\n    rather than convenient, and it is refused too.\n\n    Args:\n        from_path: Existing page or folder, e.g. \"AI/notes/draft.md\".\n        to_path:   New path, e.g. \"AI/runbooks/db-restore.md\".",
+      "inputSchema": {
+        "properties": {
+          "from_path": {
+            "title": "From Path",
+            "type": "string"
+          },
+          "to_path": {
+            "title": "To Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "from_path",
+          "to_path"
+        ],
+        "title": "wiki_moveArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "wiki_reindex",
+      "description": "Reindex / rebuild the search index / re-embed the wiki - trigger a full\n    reindex of every Elefant wiki document in the vector store.\n\n    Use this after bulk content changes (file uploads, git pulls) to ensure\n    the semantic search index is up to date. The reindex runs in the background;\n    search continues to work during indexing.",
+      "inputSchema": {
+        "properties": {},
+        "title": "wiki_reindexArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "wiki_revert",
+      "description": "Undo / roll back / restore / put it back the way it was - return an\n    Elefant wiki page to an earlier revision's content (ids come from\n    `wiki_history`).\n\n    Non-destructive: the restored content is written forward as a NEW version,\n    so the history is preserved and you can roll forward again. As with\n    `wiki_write`, agents may only revert pages inside the AI folder.\n\n    Args:\n        path:        Wiki page path (must be under the AI folder).\n        revision_id: The revision id to restore, as listed by wiki_history.",
+      "inputSchema": {
+        "properties": {
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "revision_id": {
+            "title": "Revision Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "path",
+          "revision_id"
+        ],
+        "title": "wiki_revertArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "wiki_revision",
+      "description": "Show me the old version / what did it say before - the full content of\n    one historical Elefant wiki revision (ids come from `wiki_history`).\n\n    Args:\n        path:        Wiki page path.\n        revision_id: The revision id, as listed by wiki_history.",
+      "inputSchema": {
+        "properties": {
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "revision_id": {
+            "title": "Revision Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "path",
+          "revision_id"
+        ],
+        "title": "wiki_revisionArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "wiki_search_only",
+      "description": "Search / look up / find - Elefant WIKI PAGES ONLY (notes, documents,\n    runbooks). Does not look at memories.\n\n    Do NOT use this for general queries — use the 'search' tool instead,\n    which searches both wiki and memories together. Unsure which tool fits?\n    Call `search` first, or `tool_index` for the full list.\n\n    Only use this when the user specifically asks to search documentation,\n    reference material, or the wiki only and wants to exclude memories.\n\n    Args:\n        query: Natural-language search query.\n        tags:  Comma-separated tags to restrict results (e.g. \"networking,infra\").\n               Leave empty to search all docs.\n        limit: Maximum number of results to return (1–20, default 10).",
+      "inputSchema": {
+        "properties": {
+          "query": {
+            "title": "Query",
+            "type": "string"
+          },
+          "tags": {
+            "default": "",
+            "title": "Tags",
+            "type": "string"
+          },
+          "limit": {
+            "default": 10,
+            "title": "Limit",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "wiki_search_onlyArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "wiki_tree",
+      "description": "List / show me / browse / what pages do I have - every page in the\n    Elefant wiki, optionally scoped to one folder.\n\n    Use this to discover what already exists before searching, or to browse a\n    subtree like the AI/ folder. Paths returned are space-relative and can be\n    passed directly to get_wiki_page.\n\n    Args:\n        prefix: Optional path prefix to scope the listing (e.g. \"AI/\" or\n                \"AI/youtube-transcripts/\"). Empty = list everything.",
+      "inputSchema": {
+        "properties": {
+          "prefix": {
+            "default": "",
+            "title": "Prefix",
+            "type": "string"
+          }
+        },
+        "title": "wiki_treeArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "wiki_upload_image",
+      "description": "Attach / embed / upload / put a picture, screenshot, diagram or mockup in\n    a wiki page - store an image in the Elefant (\"elephant\") wiki so a page\n    can show it inline instead of linking out.\n\n    The write half of what `get_wiki_page` already reads: upload the image\n    here, then reference it from the page with ordinary Markdown image syntax\n    `![alt](ref)` in `wiki_write` / `wiki_edit`. `get_wiki_page` returns the\n    image inline, and the wiki UI renders it. Pass `page` and the reply gives\n    you the exact `ref` to paste for that page.\n\n    Same boundary as wiki_write: the image must live under the AI folder.\n    Keep a page's images beside it, conventionally in an `assets/` folder\n    (e.g. \"AI/projects/tailor/assets/teaser.png\" for pages in\n    \"AI/projects/tailor/\"). Uploading to an existing path replaces the image.\n\n    PNG, JPEG, GIF and WebP, up to about 7MB (base64 adds a third, and a\n    tool call is capped at 10MB). SVG is refused — it can carry script. Export a diagram to PNG instead. For a PDF, export the page you\n    want as an image.\n\n    Args:\n        path:         Where to store it, under the AI folder, ending in the\n                      type's extension (.png, .jpg, .gif, .webp). A bare\n                      name like \"teaser.png\" is placed under the AI folder; a\n                      path with no extension gets one from content_type.\n        image_base64: The file's bytes, base64-encoded. A `data:` URI works too.\n        content_type: image/png | image/jpeg | image/gif | image/webp.\n                      Optional when the path's extension already says.\n        page:         Optional — the page that will embed it, e.g.\n                      \"AI/projects/tailor/branding.md\". The reply then gives\n                      the relative reference to use from that page.",
+      "inputSchema": {
+        "properties": {
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "image_base64": {
+            "title": "Image Base64",
+            "type": "string"
+          },
+          "content_type": {
+            "default": "",
+            "title": "Content Type",
+            "type": "string"
+          },
+          "page": {
+            "default": "",
+            "title": "Page",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "image_base64"
+        ],
+        "title": "wiki_upload_imageArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "wiki_write",
+      "description": "Write / create / start / draft / write up a new page - create an Elefant\n    (\"elephant\") wiki page of long-form Markdown, or replace one whole.\n\n    Agents may only write inside the org's designated AI folder (default\n    \"AI/\"). Pages there are clearly flagged as AI-generated in the wiki UI;\n    a human operator \"promotes\" a page by moving it out of the AI folder,\n    after which agents can no longer modify it. You CAN organise content into\n    subfolders under the AI folder (e.g. \"AI/runbooks/db-restore.md\").\n\n    Use this for durable, structured, human-readable reference material —\n    runbooks, summaries, design notes — not for ephemeral memory (use\n    memory_capture for that).\n\n    Every ```mermaid block in the content is parsed by Mermaid before the page\n    is saved, as the diagram tools do. A block that does not parse is refused\n    with its line number and nothing is written; a saved page that carries a\n    diagram reports `validated` in its structured content. To add a diagram\n    page on its own, `diagram_create` is the shorter path.\n\n    Args:\n        path:    Page path under the AI folder, ending in .md\n                 (e.g. \"AI/runbooks/db-restore.md\"). A bare name like\n                 \"notes.md\" is auto-placed under the AI folder.\n        content: Full Markdown content of the page (replaces existing content\n                 if the page already exists).",
+      "inputSchema": {
+        "properties": {
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "content": {
+            "title": "Content",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "content"
+        ],
+        "title": "wiki_writeArguments",
+        "type": "object"
+      }
+    }
+  ]
+}

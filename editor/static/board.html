@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Board · Elefant</title>
+  <!-- The standalone Kanban was retired; Board is now a native memory-ui tab.
+       This shim keeps every stored board.html?card=<slug> link (and bookmarks)
+       working by redirecting to the native board's #boards/<slug> deep-link. -->
+</head>
+<body>
+  <script>
+    var card = new URLSearchParams(location.search).get('card');
+    location.replace('/#boards' + (card ? '/' + encodeURIComponent(card) : ''));
+  </script>
+  <noscript><a href="/#boards">Open Board</a></noscript>
+</body>
+</html>

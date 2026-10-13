@@ -1,0 +1,21 @@
+{
+  "name": "elefant-diagram-renderer",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "description": "Optional Elefant sidecar: parses and renders Mermaid diagrams in headless Chromium for the MCP diagram tools.",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test test/*.test.mjs",
+    "notices": "node scripts/license-scan.mjs --write THIRD_PARTY_NOTICES.md",
+    "licenses:check": "node scripts/license-scan.mjs"
+  },
+  "dependencies": {
+    "mermaid": "11.16.1",
+    "puppeteer-core": "25.12.0"
+  }
+}

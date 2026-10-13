@@ -1,0 +1,193 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: embedder
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: embedder
+  template:
+    metadata:
+      labels:
+        app: embedder
+    spec:
+      enableServiceLinks: false
+      # Non-root, matching the image's own USER (10001).
+      # Writes only to its volumes and /tmp.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile: {type: RuntimeDefault}
+      affinity:
+        # THE CONSTRAINT THAT SHAPES THIS FILE. The embedder and the editor
+        # share the `docs` and `backend-sync` volumes. Those are ReadWriteOnce,
+        # which attaches to ONE node — but any number of pods on that node may
+        # mount it. So the two are required to land together.
+        #
+        # Required, not preferred: "preferred" would schedule the embedder on
+        # another node when the editor's node is full, and the pod would then
+        # sit in ContainerCreating for ever with a FailedAttachVolume event,
+        # which reads like a storage fault rather than a scheduling one.
+        #
+        # The alternative is an RWX class (Longhorn's share-manager, NFS). It
+        # costs another pod and it is not available on most clusters, so it is
+        # not what ships in the base.
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: editor
+              topologyKey: kubernetes.io/hostname
+      # One-time ownership fix for volumes created before the images went
+      # non-root. fsGroup alone gives the group access, but git refuses a repo
+      # whose OWNER is another user, so this chowns whatever is not already
+      # 10001 and exits. After the first run it changes nothing. It is the only
+      # thing in the pod that runs as root, and it keeps only the capabilities
+      # a chown walk needs.
+      initContainers:
+        - name: volume-perms
+          image: ghcr.io/zennthic/elefant/embedder
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -eu
+              for d in /docs /backend_sync /git-sources; do
+                find "$d" \( ! -user 10001 -o ! -group 10001 \) -exec chown -h 10001:10001 {} +
+              done
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+            runAsNonRoot: false
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+              add: [CHOWN, DAC_READ_SEARCH, FOWNER]
+          resources:
+            requests: {cpu: 10m, memory: 16Mi}
+            limits:   {cpu: 500m, memory: 128Mi}
+          volumeMounts:
+            - name: docs
+              mountPath: /docs
+            - name: backend-sync
+              mountPath: /backend_sync
+            - name: git-sources
+              mountPath: /git-sources
+      containers:
+        - name: embedder
+          image: ghcr.io/zennthic/elefant/embedder
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+          ports:
+            - name: http
+              containerPort: 8001
+          env:
+            - name: DOCS_DIR
+              value: /docs
+            - name: QDRANT_HOST
+              value: qdrant
+            - name: QDRANT_PORT
+              value: "6333"
+            - name: COLLECTION_NAME
+              value: knowledge_base
+            - name: BACKEND_READINESS_FILE
+              value: /backend_sync/ready
+            - name: BACKEND_INIT_TIMEOUT
+              value: "300"
+            - name: MEMORY_API_URL
+              value: http://memory-api:8002
+            - name: GIT_SOURCES_DIR
+              value: /git-sources
+            - name: HF_HOME
+              value: /home/elefant/.cache/huggingface
+            - name: INTERNAL_SERVICE_TOKEN
+              valueFrom:
+                secretKeyRef: {name: elefant-secrets, key: ELEFANT_INTERNAL_SERVICE_TOKEN}
+            - name: EMBEDDING_PROVIDER
+              valueFrom:
+                configMapKeyRef: {name: elefant-config, key: EMBEDDING_PROVIDER}
+            - name: EMBEDDING_MODEL
+              valueFrom:
+                configMapKeyRef: {name: elefant-config, key: EMBEDDING_MODEL}
+            - name: GIT_SOURCE_EMBED
+              valueFrom:
+                configMapKeyRef: {name: elefant-config, key: GIT_SOURCE_EMBED}
+            - name: MULTI_TENANT_DOCS
+              valueFrom:
+                configMapKeyRef: {name: elefant-config, key: MULTI_TENANT_DOCS}
+            - name: ELEFANT_S3_ENDPOINT_URL
+              valueFrom:
+                configMapKeyRef: {name: elefant-config, key: ELEFANT_S3_ENDPOINT_URL}
+            - name: ELEFANT_S3_REGION
+              valueFrom:
+                configMapKeyRef: {name: elefant-config, key: ELEFANT_S3_REGION}
+            - name: ELEFANT_S3_ACCESS_KEY
+              valueFrom:
+                secretKeyRef: {name: elefant-secrets, key: ELEFANT_S3_ACCESS_KEY}
+            - name: ELEFANT_S3_SECRET_KEY
+              valueFrom:
+                secretKeyRef: {name: elefant-secrets, key: ELEFANT_S3_SECRET_KEY}
+          volumeMounts:
+            - name: docs
+              mountPath: /docs
+            - name: backend-sync
+              mountPath: /backend_sync
+            - name: git-sources
+              mountPath: /git-sources
+            - name: hf-cache
+              mountPath: /home/elefant/.cache/huggingface
+          # The full image downloads and loads a sentence-transformers model on
+          # first boot, which the Compose healthcheck allows 180s for. A
+          # startupProbe gives that budget WITHOUT slackening liveness
+          # afterwards: liveness does not start counting until this passes.
+          startupProbe:
+            httpGet: {path: /health, port: http}
+            periodSeconds: 10
+            failureThreshold: 30
+          # Pure handler (it reads in-process config), so the same path is
+          # safe for both probes.
+          livenessProbe:
+            httpGet: {path: /health, port: http}
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 6
+          readinessProbe:
+            httpGet: {path: /health, port: http}
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+          resources:
+            requests: {cpu: 200m, memory: 512Mi}
+            # 1500Mi matches the Compose `mem_limit: 1500m`. The torch-free
+            # "slim" image needs far less; lower it in an overlay if you run it.
+            limits:   {cpu: "2",  memory: 1500Mi}
+      volumes:
+        - name: docs
+          persistentVolumeClaim: {claimName: docs}
+        - name: backend-sync
+          persistentVolumeClaim: {claimName: backend-sync}
+        - name: git-sources
+          persistentVolumeClaim: {claimName: git-sources}
+        # emptyDir, not a PVC: it is a model download. Losing it on a restart
+        # costs a few minutes of refetch and nothing else.
+        - name: hf-cache
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: embedder
+spec:
+  type: ClusterIP
+  selector:
+    app: embedder
+  ports:
+    - name: http
+      port: 8001
+      targetPort: http

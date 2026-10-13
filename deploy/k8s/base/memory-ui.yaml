@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: memory-ui
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: memory-ui
+  template:
+    metadata:
+      labels:
+        app: memory-ui
+    spec:
+      enableServiceLinks: false
+      # Non-root, matching the image's own USER (101).
+      # nginx-unprivileged runs as 101 and listens on 8080.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: memory-ui
+          image: ghcr.io/zennthic/elefant/memory-ui
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+          ports:
+            - name: http
+              containerPort: 8080
+          # Static files behind nginx, so serving the index IS the health
+          # check. It reaches nothing else.
+          livenessProbe:
+            httpGet: {path: /, port: http}
+            initialDelaySeconds: 10
+            periodSeconds: 20
+            failureThreshold: 6
+          readinessProbe:
+            httpGet: {path: /, port: http}
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            failureThreshold: 5
+          resources:
+            requests: {cpu: 10m,  memory: 16Mi}
+            limits:   {cpu: 200m, memory: 64Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: memory-ui
+spec:
+  type: ClusterIP
+  selector:
+    app: memory-ui
+  # 8080, not 80: nginx.conf names `memory-ui:8080` (the port the unprivileged
+  # container listens on in Compose, where there is no Service in between).
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
