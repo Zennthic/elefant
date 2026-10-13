@@ -2,7 +2,7 @@
 # deployed mcp is stale relative to main.py — e.g. shipping the auth-header
 # forwarding read fix that the previous build (broken on the macOS runner)
 # never deployed.
-FROM python:3.11.16-slim-trixie
+FROM python:3.11.17-slim-trixie
 
 # Run as a fixed, non-root UID/GID (10001). The number matters more than the
 # name: the fix-perms step in docker-compose.yml and the k8s init containers
