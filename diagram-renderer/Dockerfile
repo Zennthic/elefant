@@ -1,7 +1,7 @@
 # Elefant diagram renderer: Mermaid in headless Chromium, for the MCP diagram
 # tools. OPTIONAL: a deployment can leave this image out, and the MCP server
 # still stores and patches diagrams (see server.mjs for what changes).
-FROM node:22.22.0-trixie-slim
+FROM node:22.23.3-trixie-slim
 
 # Chromium from Debian rather than puppeteer's own download: puppeteer ships no
 # linux/arm64 build, and the distro package carries its own security updates
