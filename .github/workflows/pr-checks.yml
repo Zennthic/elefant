@@ -49,7 +49,7 @@ permissions:
 env:
   # The same runtimes `build-deploy.yml` checks `main` in. test_ci_runners.py
   # fails if the two drift apart.
-  CI_IMAGE: python:3.11.16-slim-trixie
+  CI_IMAGE: python:3.11.17-slim-trixie
   NODE_CI_IMAGE: node:22-slim
 
 jobs:

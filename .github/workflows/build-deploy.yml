@@ -28,7 +28,7 @@ env:
   # no platform-conditional skips today, and running them on the macOS runner's
   # own Python would be the change that could introduce some — silently, since
   # a skipped test exits 0.
-  CI_IMAGE: python:3.11.16-slim-trixie
+  CI_IMAGE: python:3.11.17-slim-trixie
   # memory-ui has no Python in it, so its job needs its own image. Node 22 is
   # what the suites are written against — roundtrip.mjs already works around
   # Node 22 making the global `navigator` read-only — and `-slim` is Debian

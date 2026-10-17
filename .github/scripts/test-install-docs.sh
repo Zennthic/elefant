@@ -82,7 +82,7 @@ KUBECTL_VERSION="v1.31.0"
 
 # The extraction runs in a container so the runner needs no Python. Same reason
 # as .github/scripts/ci-in-container.sh, and the same image.
-EXTRACT_IMAGE="python:3.11.16-slim-trixie"
+EXTRACT_IMAGE="python:3.11.17-slim-trixie"
 
 mkdir -p "$WORK" "$BIN"
 export PATH="$BIN:$PATH"
