@@ -6,6 +6,10 @@
 # checked by pr-checks.yml (lint and every suite, on GitHub-hosted runners)
 # and by DCO. Read the release notes before merging one: the full pipeline
 # (build, deploy, smoke) runs after the merge, on main.
+#
+# Every group takes minor and patch bumps only. A major version arrives as its
+# own PR: majors break things on purpose, and one riding in a group held back
+# every safe bump beside it. Treat a major as a planned upgrade, not a merge.
 version: 2
 updates:
   - package-ecosystem: github-actions
@@ -15,6 +19,7 @@ updates:
     groups:
       github-actions:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
 
   - package-ecosystem: docker
     directories:
@@ -42,6 +47,7 @@ updates:
     groups:
       base-images:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
 
   # Python: every service pins its direct dependencies exactly (CQ-01), so
   # nothing moves until one of these PRs is merged. One entry per service so
@@ -55,6 +61,7 @@ updates:
     groups:
       editor:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
 
   - package-ecosystem: pip
     directory: /embedder
@@ -63,6 +70,7 @@ updates:
     groups:
       embedder:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
 
   - package-ecosystem: pip
     directory: /mcp
@@ -78,6 +86,7 @@ updates:
     groups:
       mcp:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
 
   - package-ecosystem: pip
     directory: /memory-api
@@ -86,6 +95,7 @@ updates:
     groups:
       memory-api:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
 
   # The wiki UI: the Tiptap and markdown-it bundle, DOMPurify and the test
   # tooling. The bundle ships to every browser, so its advisories matter.
@@ -96,6 +106,7 @@ updates:
     groups:
       memory-ui:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
 
   # The diagram renderer drives a browser over untrusted input, so mermaid and
   # puppeteer-core security releases matter. Both are pinned exactly in
@@ -107,6 +118,7 @@ updates:
     groups:
       diagram-renderer:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
 
   # The diagram validator parses untrusted input with mermaid and linkedom.
   # Keep its mermaid on the renderer's version (CI checks they match).
@@ -117,3 +129,4 @@ updates:
     groups:
       diagram-validator:
         patterns: ["*"]
+        update-types: ["minor", "patch"]
