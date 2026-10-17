@@ -6,7 +6,6 @@ had to resolve, but customers put it in their public DNS and it reads as a
 service of whoever owns that name. The default now follows the deployment's
 own public domain, and no file in the tree names elefant.app.
 """
-import subprocess
 from pathlib import Path
 
 import orgs
@@ -57,22 +56,24 @@ def test_the_target_is_token_dot_host(clean_env):
     assert orgs._verify_host("acme.com") == "elefant-verify.acme.com"
 
 
+SKIP_DIRS = {".git", "node_modules", ".venv", "venv", "__pycache__", ".pytest_cache"}
+
+
 def test_nothing_in_the_tree_names_elefant_dot_app():
     """A default that names a domain we do not own is the thing this guards.
-    Tracked text files only; this file is the one allowed mention."""
-    files = subprocess.run(["git", "ls-files", "-z"], cwd=REPO, capture_output=True,
-                           check=True).stdout.split(b"\0")
+    This file is the one allowed mention. A filesystem walk rather than
+    `git ls-files`, like test_no_internal_references.py: CI copies the tree
+    into a container where git refuses the copied .git as another user's."""
     offenders = []
-    for raw in files:
-        if not raw:
-            continue
-        path = REPO / raw.decode()
+    for path in REPO.rglob("*"):
         if path == Path(__file__) or not path.is_file():
+            continue
+        if set(path.relative_to(REPO).parts) & SKIP_DIRS:
             continue
         try:
             text = path.read_text(encoding="utf-8")
         except (UnicodeDecodeError, OSError):
             continue
         if "elefant.app" in text:
-            offenders.append(raw.decode())
+            offenders.append(path.relative_to(REPO).as_posix())
     assert not offenders, offenders
