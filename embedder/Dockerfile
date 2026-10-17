@@ -1,4 +1,4 @@
-FROM python:3.11.16-slim-trixie
+FROM python:3.11.17-slim-trixie
 
 # INCLUDE_LOCAL_EMBEDDINGS=true (default) → "full" image with the on-box
 # embedding backend (sentence-transformers + CPU-only torch, ~1.5GB of

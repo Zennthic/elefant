@@ -1,4 +1,4 @@
-FROM python:3.11.16-slim-trixie
+FROM python:3.11.17-slim-trixie
 
 # git: storage backend  |  libxml2/xmlsec1: python3-saml (SAML 2.0)
 RUN apt-get update && apt-get install -y --no-install-recommends \
