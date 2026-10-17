@@ -34,6 +34,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from qdrant_client import QdrantClient
 from sqlalchemy import create_engine, text
+from sqlalchemy.engine import make_url
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(message)s")
 log = logging.getLogger(__name__)
@@ -162,10 +163,24 @@ def get_qdrant() -> QdrantClient:
     return _qdrant
 
 
+def engine_url(url):
+    """Name the PostgreSQL driver the image actually installs (psycopg2).
+
+    SQLAlchemy 2.1 made psycopg 3 the default for a bare `postgresql://` URL,
+    which this service does not ship, so the same DSN connected on 2.0 and
+    failed on 2.1. An explicit driver means the same thing on both. Any other
+    URL (sqlite, or a DSN that already names its driver) is left as given.
+    """
+    u = make_url(url)
+    if u.drivername == "postgresql":
+        u = u.set(drivername="postgresql+psycopg2")
+    return u
+
+
 def get_engine():
     global _engine
     if _engine is None:
-        _engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+        _engine = create_engine(engine_url(DATABASE_URL), pool_pre_ping=True)
         _ensure_schema(_engine)
     return _engine
 

@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Optional, Dict
 
 from sqlalchemy import create_engine, Column, String, DateTime, Text, Boolean, Integer, Float, LargeBinary, text, JSON as SAJson, UniqueConstraint, Index
+from sqlalchemy.engine import make_url
 from sqlalchemy.orm import declarative_base, sessionmaker
 from cryptography.fernet import Fernet, InvalidToken
 
@@ -41,12 +42,26 @@ DEFAULT_TENANT_ID   = "00000000-0000-0000-0000-000000000001"
 DEFAULT_TENANT_SLUG = "default"
 
 
+def engine_url(url):
+    """Name the PostgreSQL driver the image actually installs (psycopg2).
+
+    SQLAlchemy 2.1 made psycopg 3 the default for a bare `postgresql://` URL,
+    which this service does not ship, so the same DSN connected on 2.0 and
+    failed on 2.1. An explicit driver means the same thing on both. Any other
+    URL (sqlite, or a DSN that already names its driver) is left as given.
+    """
+    u = make_url(url)
+    if u.drivername == "postgresql":
+        u = u.set(drivername="postgresql+psycopg2")
+    return u
+
+
 def _init_engine():
     """Initialize SQLAlchemy engine (lazy initialization)."""
     global engine, SessionLocal
     if engine is None:
         if _POSTGRES_DSN:
-            engine = create_engine(DATABASE_URL, pool_pre_ping=True, echo=False)
+            engine = create_engine(engine_url(DATABASE_URL), pool_pre_ping=True, echo=False)
         else:
             engine = create_engine(
                 DATABASE_URL,

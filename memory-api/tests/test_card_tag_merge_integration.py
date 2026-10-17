@@ -25,7 +25,7 @@ import pytest
 from sqlalchemy import create_engine, text
 
 import main
-from conftest import require_postgres
+from conftest import pg_engine_url, require_postgres
 
 pytestmark = pytest.mark.integration
 
@@ -44,7 +44,7 @@ def legacy_cards():
     drift from the real one in ways that hide a failure rather than cause one.
     Its own table name per run, so a failed run never poisons the next.
     """
-    eng = create_engine(DSN)
+    eng = create_engine(pg_engine_url(DSN))
     name = f"cards_legacy_{uuid.uuid4().hex[:8]}"
     with eng.connect() as conn:
         conn.execute(text(f"""
@@ -222,7 +222,7 @@ def test_real_schema_build_leaves_no_tags_column():
 @pytest.fixture
 def rls_role():
     """A non-superuser role that owns its tables, like a provisioned app user."""
-    eng = create_engine(DSN)
+    eng = create_engine(pg_engine_url(DSN))
     name = f"rls_role_{uuid.uuid4().hex[:8]}"
     with eng.connect() as conn:
         conn.execute(text(f"CREATE ROLE {name} LOGIN"))

@@ -88,10 +88,18 @@ def card_insert_lists(src: str) -> tuple:
 
 # ── The real-PostgreSQL integration modules ───────────────────────────────
 
+def pg_engine_url(dsn: str):
+    """The test DSN with the driver the service uses (see main.engine_url).
+    Kept here rather than imported from main, which needs its env to import."""
+    from sqlalchemy.engine import make_url
+    u = make_url(dsn)
+    return u.set(drivername="postgresql+psycopg2") if u.drivername == "postgresql" else u
+
+
 def _pg_reachable(dsn: str) -> bool:
     try:
         from sqlalchemy import create_engine, text
-        eng = create_engine(dsn)
+        eng = create_engine(pg_engine_url(dsn))
         with eng.connect() as c:
             c.execute(text("SELECT 1"))
         eng.dispose()
