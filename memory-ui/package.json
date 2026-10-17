@@ -30,17 +30,17 @@
     "test:mermaid": "node test/wiki-mermaid.mjs"
   },
   "devDependencies": {
-    "@tiptap/core": "^3.31.4",
-    "@tiptap/extension-image": "^3.31.4",
+    "@tiptap/core": "^3.32.0",
+    "@tiptap/extension-image": "^3.32.0",
     "@tiptap/extension-link": "^3.31.4",
     "@tiptap/extension-list": "^3.31.4",
-    "@tiptap/extension-table": "^3.31.4",
+    "@tiptap/extension-table": "^3.32.0",
     "@tiptap/extensions": "^3.31.4",
-    "@tiptap/pm": "^3.31.4",
-    "@tiptap/starter-kit": "^3.31.4",
+    "@tiptap/pm": "^3.32.0",
+    "@tiptap/starter-kit": "^3.32.0",
     "esbuild": "^0.28.2",
-    "jsdom": "^25.0.1",
-    "mermaid": "11.16.1",
+    "jsdom": "^30.1.2",
+    "mermaid": "12.2.0",
     "tiptap-markdown": "^0.9.0"
   }
 }
