@@ -24,27 +24,27 @@ taken from esbuild's metafile, so it names only the packages the bundle contains
 
 | Package | Version | License | Copyright |
 |---|---|---|---|
-| [@tiptap/core](https://www.npmjs.com/package/@tiptap/core) | 3.31.4 | MIT | Copyright (c) 2025, Tiptap GmbH |
-| [@tiptap/extension-blockquote](https://www.npmjs.com/package/@tiptap/extension-blockquote) | 3.31.4 | MIT | Copyright (c) 2025, Tiptap GmbH |
-| [@tiptap/extension-bold](https://www.npmjs.com/package/@tiptap/extension-bold) | 3.31.4 | MIT | Copyright (c) 2025, Tiptap GmbH |
-| [@tiptap/extension-code](https://www.npmjs.com/package/@tiptap/extension-code) | 3.31.4 | MIT | Copyright (c) 2025, Tiptap GmbH |
-| [@tiptap/extension-code-block](https://www.npmjs.com/package/@tiptap/extension-code-block) | 3.31.4 | MIT | Copyright (c) 2025, Tiptap GmbH |
-| [@tiptap/extension-document](https://www.npmjs.com/package/@tiptap/extension-document) | 3.31.4 | MIT | Copyright (c) 2025, Tiptap GmbH |
-| [@tiptap/extension-hard-break](https://www.npmjs.com/package/@tiptap/extension-hard-break) | 3.31.4 | MIT | Copyright (c) 2025, Tiptap GmbH |
-| [@tiptap/extension-heading](https://www.npmjs.com/package/@tiptap/extension-heading) | 3.31.4 | MIT | Copyright (c) 2025, Tiptap GmbH |
-| [@tiptap/extension-horizontal-rule](https://www.npmjs.com/package/@tiptap/extension-horizontal-rule) | 3.31.4 | MIT | Copyright (c) 2025, Tiptap GmbH |
-| [@tiptap/extension-image](https://www.npmjs.com/package/@tiptap/extension-image) | 3.31.4 | MIT | Copyright (c) 2025, Tiptap GmbH |
-| [@tiptap/extension-italic](https://www.npmjs.com/package/@tiptap/extension-italic) | 3.31.4 | MIT | Copyright (c) 2025, Tiptap GmbH |
-| [@tiptap/extension-link](https://www.npmjs.com/package/@tiptap/extension-link) | 3.31.4 | MIT | Copyright (c) 2025, Tiptap GmbH |
-| [@tiptap/extension-list](https://www.npmjs.com/package/@tiptap/extension-list) | 3.31.4 | MIT | Copyright (c) 2025, Tiptap GmbH |
-| [@tiptap/extension-paragraph](https://www.npmjs.com/package/@tiptap/extension-paragraph) | 3.31.4 | MIT | Copyright (c) 2025, Tiptap GmbH |
-| [@tiptap/extension-strike](https://www.npmjs.com/package/@tiptap/extension-strike) | 3.31.4 | MIT | Copyright (c) 2025, Tiptap GmbH |
-| [@tiptap/extension-table](https://www.npmjs.com/package/@tiptap/extension-table) | 3.31.4 | MIT | Copyright (c) 2025, Tiptap GmbH |
-| [@tiptap/extension-text](https://www.npmjs.com/package/@tiptap/extension-text) | 3.31.4 | MIT | Copyright (c) 2025, Tiptap GmbH |
-| [@tiptap/extension-underline](https://www.npmjs.com/package/@tiptap/extension-underline) | 3.31.4 | MIT | Copyright (c) 2025, Tiptap GmbH |
-| [@tiptap/extensions](https://www.npmjs.com/package/@tiptap/extensions) | 3.31.4 | MIT | Copyright (c) 2025, Tiptap GmbH |
-| [@tiptap/pm](https://www.npmjs.com/package/@tiptap/pm) | 3.31.4 | MIT | Copyright (c) 2025, Tiptap GmbH |
-| [@tiptap/starter-kit](https://www.npmjs.com/package/@tiptap/starter-kit) | 3.31.4 | MIT | Copyright (c) 2025, Tiptap GmbH |
+| [@tiptap/core](https://www.npmjs.com/package/@tiptap/core) | 3.32.0 | MIT | Copyright (c) 2025, Tiptap GmbH |
+| [@tiptap/extension-blockquote](https://www.npmjs.com/package/@tiptap/extension-blockquote) | 3.32.0 | MIT | Copyright (c) 2025, Tiptap GmbH |
+| [@tiptap/extension-bold](https://www.npmjs.com/package/@tiptap/extension-bold) | 3.32.0 | MIT | Copyright (c) 2025, Tiptap GmbH |
+| [@tiptap/extension-code](https://www.npmjs.com/package/@tiptap/extension-code) | 3.32.0 | MIT | Copyright (c) 2025, Tiptap GmbH |
+| [@tiptap/extension-code-block](https://www.npmjs.com/package/@tiptap/extension-code-block) | 3.32.0 | MIT | Copyright (c) 2025, Tiptap GmbH |
+| [@tiptap/extension-document](https://www.npmjs.com/package/@tiptap/extension-document) | 3.32.0 | MIT | Copyright (c) 2025, Tiptap GmbH |
+| [@tiptap/extension-hard-break](https://www.npmjs.com/package/@tiptap/extension-hard-break) | 3.32.0 | MIT | Copyright (c) 2025, Tiptap GmbH |
+| [@tiptap/extension-heading](https://www.npmjs.com/package/@tiptap/extension-heading) | 3.32.0 | MIT | Copyright (c) 2025, Tiptap GmbH |
+| [@tiptap/extension-horizontal-rule](https://www.npmjs.com/package/@tiptap/extension-horizontal-rule) | 3.32.0 | MIT | Copyright (c) 2025, Tiptap GmbH |
+| [@tiptap/extension-image](https://www.npmjs.com/package/@tiptap/extension-image) | 3.32.0 | MIT | Copyright (c) 2025, Tiptap GmbH |
+| [@tiptap/extension-italic](https://www.npmjs.com/package/@tiptap/extension-italic) | 3.32.0 | MIT | Copyright (c) 2025, Tiptap GmbH |
+| [@tiptap/extension-link](https://www.npmjs.com/package/@tiptap/extension-link) | 3.32.0 | MIT | Copyright (c) 2025, Tiptap GmbH |
+| [@tiptap/extension-list](https://www.npmjs.com/package/@tiptap/extension-list) | 3.32.0 | MIT | Copyright (c) 2025, Tiptap GmbH |
+| [@tiptap/extension-paragraph](https://www.npmjs.com/package/@tiptap/extension-paragraph) | 3.32.0 | MIT | Copyright (c) 2025, Tiptap GmbH |
+| [@tiptap/extension-strike](https://www.npmjs.com/package/@tiptap/extension-strike) | 3.32.0 | MIT | Copyright (c) 2025, Tiptap GmbH |
+| [@tiptap/extension-table](https://www.npmjs.com/package/@tiptap/extension-table) | 3.32.0 | MIT | Copyright (c) 2025, Tiptap GmbH |
+| [@tiptap/extension-text](https://www.npmjs.com/package/@tiptap/extension-text) | 3.32.0 | MIT | Copyright (c) 2025, Tiptap GmbH |
+| [@tiptap/extension-underline](https://www.npmjs.com/package/@tiptap/extension-underline) | 3.32.0 | MIT | Copyright (c) 2025, Tiptap GmbH |
+| [@tiptap/extensions](https://www.npmjs.com/package/@tiptap/extensions) | 3.32.0 | MIT | Copyright (c) 2025, Tiptap GmbH |
+| [@tiptap/pm](https://www.npmjs.com/package/@tiptap/pm) | 3.32.0 | MIT | Copyright (c) 2025, Tiptap GmbH |
+| [@tiptap/starter-kit](https://www.npmjs.com/package/@tiptap/starter-kit) | 3.32.0 | MIT | Copyright (c) 2025, Tiptap GmbH |
 | [entities](https://www.npmjs.com/package/entities) | 4.5.0 | BSD-2-Clause | Copyright (c) Felix Böhm |
 | [linkify-it](https://www.npmjs.com/package/linkify-it) | 5.0.2 | MIT | Copyright (c) 2015 Vitaly Puzrin. |
 | [linkifyjs](https://www.npmjs.com/package/linkifyjs) | 4.3.3 | MIT | Copyright (c) 2024 Nick Frasser |
@@ -53,7 +53,7 @@ taken from esbuild's metafile, so it names only the packages the bundle contains
 | [mdurl](https://www.npmjs.com/package/mdurl) | 2.0.0 | MIT | Copyright (c) 2015 Vitaly Puzrin, Alex Kocharin. |
 | [orderedmap](https://www.npmjs.com/package/orderedmap) | 2.1.1 | MIT | Copyright (C) 2016 by Marijn Haverbeke <marijn@haverbeke.berlin> and others |
 | [prosemirror-commands](https://www.npmjs.com/package/prosemirror-commands) | 1.7.2 | MIT | Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others |
-| [prosemirror-dropcursor](https://www.npmjs.com/package/prosemirror-dropcursor) | 1.8.3 | MIT | Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others |
+| [prosemirror-dropcursor](https://www.npmjs.com/package/prosemirror-dropcursor) | 1.8.4 | MIT | Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others |
 | [prosemirror-gapcursor](https://www.npmjs.com/package/prosemirror-gapcursor) | 1.4.1 | MIT | Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others |
 | [prosemirror-history](https://www.npmjs.com/package/prosemirror-history) | 1.5.1 | MIT | Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others |
 | [prosemirror-keymap](https://www.npmjs.com/package/prosemirror-keymap) | 1.2.3 | MIT | Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others |
@@ -62,7 +62,7 @@ taken from esbuild's metafile, so it names only the packages the bundle contains
 | [prosemirror-schema-list](https://www.npmjs.com/package/prosemirror-schema-list) | 1.5.1 | MIT | Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others |
 | [prosemirror-state](https://www.npmjs.com/package/prosemirror-state) | 1.4.4 | MIT | Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others |
 | [prosemirror-tables](https://www.npmjs.com/package/prosemirror-tables) | 1.8.5 | MIT | Copyright (C) 2015-2016 by Marijn Haverbeke <marijnh@gmail.com> and others |
-| [prosemirror-transform](https://www.npmjs.com/package/prosemirror-transform) | 1.12.0 | MIT | Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others |
+| [prosemirror-transform](https://www.npmjs.com/package/prosemirror-transform) | 1.12.2 | MIT | Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others |
 | [prosemirror-view](https://www.npmjs.com/package/prosemirror-view) | 1.42.6 | MIT | Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others |
 | [punycode.js](https://www.npmjs.com/package/punycode.js) | 2.3.1 | MIT | Copyright Mathias Bynens <https://mathiasbynens.be/> |
 | [rope-sequence](https://www.npmjs.com/package/rope-sequence) | 1.3.4 | MIT | Copyright (C) 2016 by Marijn Haverbeke <marijn@haverbeke.berlin> |
@@ -297,7 +297,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### @tiptap/core@3.31.4, @tiptap/extension-blockquote@3.31.4, @tiptap/extension-bold@3.31.4, @tiptap/extension-code@3.31.4, @tiptap/extension-code-block@3.31.4, @tiptap/extension-document@3.31.4, @tiptap/extension-hard-break@3.31.4, @tiptap/extension-heading@3.31.4, @tiptap/extension-horizontal-rule@3.31.4, @tiptap/extension-image@3.31.4, @tiptap/extension-italic@3.31.4, @tiptap/extension-link@3.31.4, @tiptap/extension-list@3.31.4, @tiptap/extension-paragraph@3.31.4, @tiptap/extension-strike@3.31.4, @tiptap/extension-table@3.31.4, @tiptap/extension-text@3.31.4, @tiptap/extension-underline@3.31.4, @tiptap/extensions@3.31.4, @tiptap/pm@3.31.4, @tiptap/starter-kit@3.31.4
+### @tiptap/core@3.32.0, @tiptap/extension-blockquote@3.32.0, @tiptap/extension-bold@3.32.0, @tiptap/extension-code@3.32.0, @tiptap/extension-code-block@3.32.0, @tiptap/extension-document@3.32.0, @tiptap/extension-hard-break@3.32.0, @tiptap/extension-heading@3.32.0, @tiptap/extension-horizontal-rule@3.32.0, @tiptap/extension-image@3.32.0, @tiptap/extension-italic@3.32.0, @tiptap/extension-link@3.32.0, @tiptap/extension-list@3.32.0, @tiptap/extension-paragraph@3.32.0, @tiptap/extension-strike@3.32.0, @tiptap/extension-table@3.32.0, @tiptap/extension-text@3.32.0, @tiptap/extension-underline@3.32.0, @tiptap/extensions@3.32.0, @tiptap/pm@3.32.0, @tiptap/starter-kit@3.32.0
 
 ```
 MIT License
@@ -509,7 +509,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-### prosemirror-commands@1.7.2, prosemirror-dropcursor@1.8.3, prosemirror-gapcursor@1.4.1, prosemirror-history@1.5.1, prosemirror-keymap@1.2.3, prosemirror-markdown@1.13.5, prosemirror-model@1.25.12, prosemirror-schema-list@1.5.1, prosemirror-state@1.4.4, prosemirror-transform@1.12.0, prosemirror-view@1.42.6
+### prosemirror-commands@1.7.2, prosemirror-dropcursor@1.8.4, prosemirror-gapcursor@1.4.1, prosemirror-history@1.5.1, prosemirror-keymap@1.2.3, prosemirror-markdown@1.13.5, prosemirror-model@1.25.12, prosemirror-schema-list@1.5.1, prosemirror-state@1.4.4, prosemirror-transform@1.12.2, prosemirror-view@1.42.6
 
 ```
 Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
