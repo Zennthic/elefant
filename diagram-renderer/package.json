@@ -16,6 +16,6 @@
   },
   "dependencies": {
     "mermaid": "11.16.1",
-    "puppeteer-core": "25.14.0"
+    "puppeteer-core": "25.15.0"
   }
 }
