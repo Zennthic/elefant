@@ -17,4 +17,4 @@ sentence-transformers==6.1.0
 # can change the vectors the model produces for the same text. Bump either pin
 # only with the vector compatibility check in tests/vector_compat.py: it says
 # whether existing Qdrant collections need a reindex.
-transformers==5.18.0
+transformers==5.20.2
