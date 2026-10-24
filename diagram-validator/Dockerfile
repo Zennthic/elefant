@@ -1,6 +1,6 @@
 # Elefant diagram validator: Mermaid's parser in plain Node, for the MCP
 # diagram tools. No browser: parsing needs no layout. See server.mjs.
-FROM node:22.22.0-trixie-slim
+FROM node:22.23.3-trixie-slim
 
 # Fixed, non-root UID/GID 10001, like the other services. It owns no volume.
 RUN groupadd --system --gid 10001 elefant \
