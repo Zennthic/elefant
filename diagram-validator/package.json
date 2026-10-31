@@ -15,7 +15,7 @@
     "licenses:check": "node scripts/license-scan.mjs"
   },
   "dependencies": {
-    "linkedom": "0.18.13",
+    "linkedom": "0.18.14",
     "mermaid": "11.16.1"
   }
 }
