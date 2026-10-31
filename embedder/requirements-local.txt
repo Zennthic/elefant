@@ -10,11 +10,11 @@
 # Pinned exactly, like the base requirements. torch itself is not listed here:
 # the Dockerfile installs it first, from PyTorch's CPU-only index, at the
 # version pinned there.
-sentence-transformers==6.1.0
+sentence-transformers==6.2.0
 #
 # transformers is a transitive dependency, pinned here as well because it
 # carries most of this file's security advisories and because a version change
 # can change the vectors the model produces for the same text. Bump either pin
 # only with the vector compatibility check in tests/vector_compat.py: it says
 # whether existing Qdrant collections need a reindex.
-transformers==5.18.0
+transformers==5.21.0
