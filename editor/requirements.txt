@@ -20,6 +20,6 @@ cachetools==7.2.0
 bcrypt==5.0.0
 pyotp==2.10.0
 qrcode[pil]==8.2
-dnspython==2.8.0
+dnspython==2.9.0
 boto3==1.43.104
 pyzipper==0.4.0
