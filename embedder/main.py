@@ -2879,8 +2879,13 @@ def _wiki_hit_visible(payload: dict, ctx: Optional[dict],
     # Native wiki result → top-level dir = space; admins always allowed
     if ctx is None or _is_admin(ctx):
         return True
-    path = payload.get("path") or ""
-    space = path.strip("/").split("/", 1)[0] if "/" in path.strip("/") else ""
+    path = (payload.get("path") or "").strip("/")
+    # The indexer stores paths relative to /docs, so in the multi-tenant
+    # layout they begin with the tenant's own directory: `<slug>/<space>/...`.
+    # The space the editor's ACLs name is the first segment below that.
+    if _MULTI_TENANT_DOCS and tenant_slug and path.startswith(f"{tenant_slug}/"):
+        path = path[len(tenant_slug) + 1:]
+    space = path.split("/", 1)[0] if "/" in path else ""
     if not space:
         return True
     # The editor returns the user's accessible spaces lazily — for search we
@@ -2900,9 +2905,12 @@ def _resolve_allowed_spaces(ctx: dict) -> set:
             data = _json.loads(r.read())
             ctx["_allowed_spaces"] = set(data.get("spaces") or [])
     except Exception as exc:
-        log.warning("wiki-spaces lookup failed: %s — defaulting to permissive", exc)
-        ctx["_allowed_spaces"] = None  # None = bypass space filtering
-    return ctx["_allowed_spaces"] or set()
+        # Fail closed, as the git-source lookup does: without the editor's
+        # answer we cannot tell which spaces are restricted, so only
+        # root-level pages (which no space ACL covers) stay visible.
+        log.warning("wiki-spaces lookup failed: %s — hiding space-scoped wiki hits", exc)
+        ctx["_allowed_spaces"] = set()
+    return ctx["_allowed_spaces"]
 
 
 def _collect_git_source_ids(hits) -> List[str]:
